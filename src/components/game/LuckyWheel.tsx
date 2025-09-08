@@ -26,7 +26,8 @@ export default function LuckyWheel({ open, onOpenChange }: LuckyWheelProps) {
   const [finalRewardIndex, setFinalRewardIndex] = useState<number | null>(null);
   const [canSpin, setCanSpin] = useState(true);
   const wheelRef = useRef<HTMLDivElement>(null);
-  const transitionDuration = isSpinning ? 10000 : 0; // 10s for spinning, 0 for stop
+  
+  const transitionDuration = 10000; // 10s for spinning
 
   useEffect(() => {
     if (open) {
@@ -49,9 +50,9 @@ export default function LuckyWheel({ open, onOpenChange }: LuckyWheelProps) {
     setCanSpin(false);
     setIsSpinning(true);
 
-    const initialRotation = spinDegrees;
+    // Huge rotation to make it spin for a long time
     const fullSpins = 10;
-    const newSpinDegrees = initialRotation + 360 * fullSpins;
+    const newSpinDegrees = spinDegrees + 360 * fullSpins;
     
     if (wheelRef.current) {
         wheelRef.current.style.transition = `transform ${transitionDuration}ms linear`;
@@ -62,33 +63,35 @@ export default function LuckyWheel({ open, onOpenChange }: LuckyWheelProps) {
   };
   
   const handleStop = () => {
-    if (!isSpinning) return;
+    if (!isSpinning || !wheelRef.current) return;
 
-    if (wheelRef.current) {
-      const computedStyle = window.getComputedStyle(wheelRef.current);
-      const transform = computedStyle.transform;
-      
-      let currentAngle = 0;
-      if (transform !== 'none') {
-        const matrix = new DOMMatrixReadOnly(transform);
-        currentAngle = Math.atan2(matrix.b, matrix.a) * (180 / Math.PI);
-      }
-      
-      // Freeze the wheel at its current position
-      wheelRef.current.style.transition = 'none';
-      wheelRef.current.style.transform = `rotate(${currentAngle}deg)`;
-      setSpinDegrees(currentAngle);
-      
-      setIsSpinning(false);
-
-      // Calculate the final reward
-      const segmentDegrees = 360 / rewards.length;
-      const normalizedAngle = (360 - (currentAngle % 360)) % 360; // Normalize angle to be positive
-      const stoppedSegmentIndex = Math.floor(normalizedAngle / segmentDegrees);
-      
-      setFinalRewardIndex(stoppedSegmentIndex);
-      setTimeout(() => setCanSpin(true), 500); // Allow to spin again after a short delay
+    // Get current rotation angle from the transform property
+    const computedStyle = window.getComputedStyle(wheelRef.current);
+    const transform = computedStyle.transform;
+    
+    let currentAngle = 0;
+    if (transform !== 'none') {
+      const matrix = new DOMMatrixReadOnly(transform);
+      // 'a' is cos(angle), 'b' is sin(angle)
+      currentAngle = Math.atan2(matrix.b, matrix.a) * (180 / Math.PI);
     }
+    
+    // Freeze the wheel at its current position by removing the transition
+    wheelRef.current.style.transition = 'none';
+    wheelRef.current.style.transform = `rotate(${currentAngle}deg)`;
+    
+    setSpinDegrees(currentAngle);
+    setIsSpinning(false);
+
+    // Calculate the final reward based on where it stopped
+    const segmentDegrees = 360 / rewards.length;
+    // Normalize angle to be positive from 0 to 360
+    const normalizedAngle = (360 - (currentAngle % 360)) % 360; 
+    const stoppedSegmentIndex = Math.floor(normalizedAngle / segmentDegrees);
+    
+    setFinalRewardIndex(stoppedSegmentIndex);
+    // Allow to spin again after a short delay
+    setTimeout(() => setCanSpin(true), 500); 
   };
 
   const segmentDegrees = 360 / rewards.length;
@@ -120,11 +123,11 @@ export default function LuckyWheel({ open, onOpenChange }: LuckyWheelProps) {
                 }}
               >
                 <div 
-                  className="flex flex-col items-center justify-center" 
+                  className="flex flex-col items-center justify-center text-center"
                   style={{ transform: `rotate(${segmentDegrees / 2}deg) translate(-50%, -25%)`}}
                 >
                   {reward.icon}
-                  <span className="text-xs font-semibold mt-1">{reward.text.split(' ')[0]}</span>
+                  <span className="text-xs font-semibold mt-1 px-2">{reward.text}</span>
                 </div>
               </div>
             ))}
