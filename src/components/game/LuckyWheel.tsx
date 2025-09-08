@@ -63,7 +63,7 @@ export default function LuckyWheel({ open, onOpenChange }: LuckyWheelProps) {
         <div className="relative flex flex-col items-center justify-center p-8">
           <ArrowRight className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-12 text-primary z-10 -rotate-90" />
           <div
-            className="relative w-80 h-80 rounded-full border-8 border-primary shadow-2xl overflow-hidden transition-transform duration-[5000ms] ease-out"
+            className="relative w-80 h-80 rounded-full border-8 border-primary shadow-2xl overflow-hidden transition-transform duration-5000 ease-out"
             style={{ transform: `rotate(${spinDegrees}deg)` }}
           >
             {rewards.map((reward, index) => (
