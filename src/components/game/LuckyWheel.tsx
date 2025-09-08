@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Gift, Star, Trophy, ArrowRight, Sparkles } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface LuckyWheelProps {
   open: boolean;
@@ -23,7 +24,9 @@ export default function LuckyWheel({ open, onOpenChange }: LuckyWheelProps) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [spinDegrees, setSpinDegrees] = useState(0);
   const [finalRewardIndex, setFinalRewardIndex] = useState<number | null>(null);
-  const [canStop, setCanStop] = useState(false);
+  const [canSpin, setCanSpin] = useState(true);
+  const wheelRef = useRef<HTMLDivElement>(null);
+  const transitionDuration = isSpinning ? 10000 : 0; // 10s for spinning, 0 for stop
 
   useEffect(() => {
     if (open) {
@@ -31,57 +34,64 @@ export default function LuckyWheel({ open, onOpenChange }: LuckyWheelProps) {
       setIsSpinning(false);
       setSpinDegrees(0);
       setFinalRewardIndex(null);
-      setCanStop(false);
+      setCanSpin(true);
+       if (wheelRef.current) {
+        wheelRef.current.style.transition = 'none';
+        wheelRef.current.style.transform = `rotate(0deg)`;
+      }
     }
   }, [open]);
 
   const handleSpin = () => {
-    if (isSpinning) return;
+    if (!canSpin) return;
     
     setFinalRewardIndex(null);
+    setCanSpin(false);
     setIsSpinning(true);
-    setCanStop(false);
+
+    const initialRotation = spinDegrees;
+    const fullSpins = 10;
+    const newSpinDegrees = initialRotation + 360 * fullSpins;
     
-    // Start spinning with a long, continuous animation
-    setSpinDegrees(prev => prev + 360 * 10); // Spin 10 more times
-    
-    // Allow user to stop after a short delay
-    setTimeout(() => {
-        setCanStop(true);
-    }, 1000); // Can stop after 1 second
+    if (wheelRef.current) {
+        wheelRef.current.style.transition = `transform ${transitionDuration}ms linear`;
+        wheelRef.current.style.transform = `rotate(${newSpinDegrees}deg)`;
+    }
+
+    setSpinDegrees(newSpinDegrees);
+  };
+  
+  const handleStop = () => {
+    if (!isSpinning) return;
+
+    if (wheelRef.current) {
+      const computedStyle = window.getComputedStyle(wheelRef.current);
+      const transform = computedStyle.transform;
+      
+      let currentAngle = 0;
+      if (transform !== 'none') {
+        const matrix = new DOMMatrixReadOnly(transform);
+        currentAngle = Math.atan2(matrix.b, matrix.a) * (180 / Math.PI);
+      }
+      
+      // Freeze the wheel at its current position
+      wheelRef.current.style.transition = 'none';
+      wheelRef.current.style.transform = `rotate(${currentAngle}deg)`;
+      setSpinDegrees(currentAngle);
+      
+      setIsSpinning(false);
+
+      // Calculate the final reward
+      const segmentDegrees = 360 / rewards.length;
+      const normalizedAngle = (360 - (currentAngle % 360)) % 360; // Normalize angle to be positive
+      const stoppedSegmentIndex = Math.floor(normalizedAngle / segmentDegrees);
+      
+      setFinalRewardIndex(stoppedSegmentIndex);
+      setTimeout(() => setCanSpin(true), 500); // Allow to spin again after a short delay
+    }
   };
 
-  const handleStop = () => {
-    if (!canStop) return;
-
-    setCanStop(false);
-    
-    const wheelElement = document.getElementById('lucky-wheel');
-    if (!wheelElement) return;
-
-    const computedStyle = window.getComputedStyle(wheelElement);
-    const transform = computedStyle.transform;
-    const matrix = new DOMMatrixReadOnly(transform);
-    const currentAngle = Math.atan2(matrix.b, matrix.a) * (180 / Math.PI);
-    
-    const randomStopIndex = Math.floor(Math.random() * rewards.length);
-    const segmentDegrees = 360 / rewards.length;
-    
-    // Calculate final angle to land on the chosen segment
-    const baseRotations = Math.ceil(spinDegrees / 360) * 360 + (360 * 2); // Ensure it spins at least 2 more times
-    const stopAngle = (randomStopIndex * segmentDegrees) + (segmentDegrees / 2);
-    const finalAngle = baseRotations - stopAngle;
-
-    setSpinDegrees(finalAngle);
-
-    setTimeout(() => {
-      setFinalRewardIndex(randomStopIndex);
-      setIsSpinning(false);
-    }, 4000); // Corresponds to the new transition duration
-  }
-
   const segmentDegrees = 360 / rewards.length;
-  const showStopButton = isSpinning && canStop;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -96,11 +106,8 @@ export default function LuckyWheel({ open, onOpenChange }: LuckyWheelProps) {
           <ArrowRight className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-12 text-primary z-10 -rotate-90" />
           <div
             id="lucky-wheel"
+            ref={wheelRef}
             className="relative w-80 h-80 rounded-full border-8 border-primary shadow-2xl overflow-hidden"
-            style={{ 
-              transform: `rotate(${spinDegrees}deg)`,
-              transition: isSpinning ? (canStop ? 'transform 10s linear' : 'transform 4s cubic-bezier(0.25, 0.1, 0.25, 1)') : 'none',
-             }}
           >
             {rewards.map((reward, index) => (
               <div
@@ -134,12 +141,12 @@ export default function LuckyWheel({ open, onOpenChange }: LuckyWheelProps) {
             </div>
         ) : (
              <Button 
-                onClick={showStopButton ? handleStop : handleSpin} 
-                disabled={isSpinning && !canStop} 
+                onClick={isSpinning ? handleStop : handleSpin} 
+                disabled={!canSpin && !isSpinning} 
                 className="w-full"
-                variant={showStopButton ? 'destructive' : 'default'}
+                variant={isSpinning ? 'destructive' : 'default'}
              >
-                {isSpinning ? (canStop ? 'Dừng Lại!' : 'Đang quay...') : 'Quay Ngay!'}
+                {isSpinning ? 'Dừng Lại!' : 'Quay Ngay!'}
              </Button>
         )}
       </DialogContent>
