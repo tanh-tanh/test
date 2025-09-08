@@ -2,6 +2,9 @@
 
 import { validateVietnameseAnswer } from '@/ai/flows/validate-vietnamese-answer';
 import type { ValidateVietnameseAnswerInput } from '@/ai/flows/validate-vietnamese-answer';
+import { generatePuzzleClues } from '@/ai/flows/generate-puzzle-clues';
+import type { GeneratePuzzleCluesInput } from '@/ai/flows/generate-puzzle-clues';
+
 
 export async function checkAnswerAction(params: ValidateVietnameseAnswerInput) {
   try {
@@ -18,6 +21,22 @@ export async function checkAnswerAction(params: ValidateVietnameseAnswerInput) {
         message: isCorrect ? 'Đúng rồi!' : 'Câu trả lời chưa chính xác.' 
       } 
     };
+  }
+}
+
+export async function generatePuzzleCluesAction(params: GeneratePuzzleCluesInput) {
+  try {
+    const result = await generatePuzzleClues(params);
+    return { success: true, data: result };
+  } catch(error) {
+    console.error("AI clue generation failed:", error);
+    // Fallback to return empty clues
+    return {
+        success: false,
+        data: {
+            clues: params.answers.map(() => 'Không thể tạo gợi ý.')
+        }
+    }
   }
 }
 
