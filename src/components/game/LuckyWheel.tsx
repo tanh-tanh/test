@@ -23,33 +23,65 @@ export default function LuckyWheel({ open, onOpenChange }: LuckyWheelProps) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [spinDegrees, setSpinDegrees] = useState(0);
   const [finalRewardIndex, setFinalRewardIndex] = useState<number | null>(null);
+  const [canStop, setCanStop] = useState(false);
 
   useEffect(() => {
     if (open) {
+      // Reset state when dialog opens
       setIsSpinning(false);
       setSpinDegrees(0);
       setFinalRewardIndex(null);
+      setCanStop(false);
     }
   }, [open]);
 
   const handleSpin = () => {
     if (isSpinning) return;
     
+    setFinalRewardIndex(null);
     setIsSpinning(true);
-    const randomStopIndex = Math.floor(Math.random() * rewards.length);
-    const segmentDegrees = 360 / rewards.length;
-    // Add base rotations for effect, then land on the segment.
-    // The calculation positions the pointer in the middle of the segment.
-    const finalAngle = (360 * 5) - (randomStopIndex * segmentDegrees) - (segmentDegrees / 2);
+    setCanStop(false);
     
-    setSpinDegrees(finalAngle);
+    // Start spinning with a long, continuous animation
+    setSpinDegrees(prev => prev + 360 * 10); // Spin 10 more times
     
+    // Allow user to stop after a short delay
     setTimeout(() => {
-      setFinalRewardIndex(randomStopIndex);
-    }, 6000); // Should be slightly longer than animation duration
+        setCanStop(true);
+    }, 1000); // Can stop after 1 second
   };
 
+  const handleStop = () => {
+    if (!canStop) return;
+
+    setCanStop(false);
+    
+    const wheelElement = document.getElementById('lucky-wheel');
+    if (!wheelElement) return;
+
+    const computedStyle = window.getComputedStyle(wheelElement);
+    const transform = computedStyle.transform;
+    const matrix = new DOMMatrixReadOnly(transform);
+    const currentAngle = Math.atan2(matrix.b, matrix.a) * (180 / Math.PI);
+    
+    const randomStopIndex = Math.floor(Math.random() * rewards.length);
+    const segmentDegrees = 360 / rewards.length;
+    
+    // Calculate final angle to land on the chosen segment
+    const baseRotations = Math.ceil(spinDegrees / 360) * 360 + (360 * 2); // Ensure it spins at least 2 more times
+    const stopAngle = (randomStopIndex * segmentDegrees) + (segmentDegrees / 2);
+    const finalAngle = baseRotations - stopAngle;
+
+    setSpinDegrees(finalAngle);
+
+    setTimeout(() => {
+      setFinalRewardIndex(randomStopIndex);
+      setIsSpinning(false);
+    }, 4000); // Corresponds to the new transition duration
+  }
+
   const segmentDegrees = 360 / rewards.length;
+  const showStopButton = isSpinning && canStop;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -63,8 +95,12 @@ export default function LuckyWheel({ open, onOpenChange }: LuckyWheelProps) {
         <div className="relative flex flex-col items-center justify-center p-8">
           <ArrowRight className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-12 text-primary z-10 -rotate-90" />
           <div
-            className="relative w-80 h-80 rounded-full border-8 border-primary shadow-2xl overflow-hidden transition-transform duration-5000 ease-out"
-            style={{ transform: `rotate(${spinDegrees}deg)` }}
+            id="lucky-wheel"
+            className="relative w-80 h-80 rounded-full border-8 border-primary shadow-2xl overflow-hidden"
+            style={{ 
+              transform: `rotate(${spinDegrees}deg)`,
+              transition: isSpinning ? (canStop ? 'transform 10s linear' : 'transform 4s cubic-bezier(0.25, 0.1, 0.25, 1)') : 'none',
+             }}
           >
             {rewards.map((reward, index) => (
               <div
@@ -97,9 +133,14 @@ export default function LuckyWheel({ open, onOpenChange }: LuckyWheelProps) {
                 <Button onClick={() => onOpenChange(false)} className="w-full">Tuyệt vời!</Button>
             </div>
         ) : (
-            <Button onClick={handleSpin} disabled={isSpinning} className="w-full">
-            {isSpinning ? 'Đang quay...' : 'Quay Ngay!'}
-            </Button>
+             <Button 
+                onClick={showStopButton ? handleStop : handleSpin} 
+                disabled={isSpinning && !canStop} 
+                className="w-full"
+                variant={showStopButton ? 'destructive' : 'default'}
+             >
+                {isSpinning ? (canStop ? 'Dừng Lại!' : 'Đang quay...') : 'Quay Ngay!'}
+             </Button>
         )}
       </DialogContent>
     </Dialog>
