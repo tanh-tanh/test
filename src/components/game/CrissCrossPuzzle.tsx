@@ -118,11 +118,13 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
         setSolvedClues(prev => ({...prev, [activeClue.id]: true}));
         
         if (activeClue.direction === 'down') {
-          toast({ title: 'Từ khóa chính xác!', description: 'Bạn nhận được 1 lượt quay may mắn!', variant: 'default' });
-          setSpins(spins => spins + 1);
+          toast({ title: 'Từ khóa chính xác!', description: 'Bạn nhận được 2 lượt quay may mắn!', variant: 'default' });
+          setSpins(spins => spins + 2);
           setWheelOpen(true);
         } else {
-          toast({ title: 'Chính xác!', description: 'Bạn thật xuất sắc!', variant: 'default' });
+          toast({ title: 'Chính xác!', description: 'Bạn nhận được 1 lượt quay may mắn!', variant: 'default' });
+          setSpins(spins => spins + 1);
+          setWheelOpen(true);
         }
         
         let { row, col } = activeClue;
@@ -255,3 +257,5 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
     </div>
   );
 }
+
+    
