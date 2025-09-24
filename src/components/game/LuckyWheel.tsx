@@ -1,33 +1,11 @@
 
 'use client';
 
-import { useEffect, useState, useRef, useTransition } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Gift, Star, Trophy, ArrowRight, Sparkles, Rewind, Frown, Users } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import type { LuckyWheelReward } from '@/lib/puzzle';
-
-
-const ICONS: Record<string, React.ReactNode> = {
-    'điểm': <Trophy className="w-8 h-8 text-yellow-500" />,
-    'gợi ý': <Gift className="w-8 h-8 text-red-500" />,
-    'nhân đôi': <Star className="w-8 h-8 text-blue-500" />,
-    'bí ẩn': <Sparkles className="w-8 h-8 text-purple-500" />,
-    'thêm lượt': <Rewind className="w-8 h-8 text-green-500" />,
-    'mất lượt': <Frown className="w-8 h-8 text-gray-400" />,
-    'nhường lượt': <Users className="w-8 h-8 text-cyan-500" />,
-};
-
-const getIconForReward = (text: string) => {
-    const lowerText = text.toLowerCase();
-    for(const key in ICONS) {
-        if (lowerText.includes(key)) {
-            return ICONS[key];
-        }
-    }
-    return <Star className="w-8 h-8 text-gray-500" />;
-}
-
 
 interface LuckyWheelProps {
   open: boolean;
@@ -92,7 +70,6 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, setSpin
       spinInterval.current = null;
       
       const currentAngle = parseFloat(wheelRef.current?.style.transform.replace('rotate(', '').replace('deg)', '')) || 0;
-      setRotation(currentAngle);
       
       setIsSpinning(false);
 
@@ -101,6 +78,14 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, setSpin
       );
       
       setFinalRewardIndex(winningIndex);
+      
+      // Apply a smooth transition to the final stop position
+      if (wheelRef.current) {
+        wheelRef.current.style.transition = 'transform 3s ease-out';
+        const finalRotation = currentAngle; // Stop immediately
+        wheelRef.current.style.transform = `rotate(${finalRotation}deg)`;
+        setRotation(finalRotation);
+      }
       
       const reward = rewards[winningIndex];
       if (reward.text.toLowerCase().includes('thêm lượt')) {
@@ -188,8 +173,7 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, setSpin
                   className="flex flex-col items-center justify-center text-center"
                   style={{ transform: `rotate(${segmentDegrees / 2}deg) translate(-50%, -25%)`}}
                 >
-                  {getIconForReward(reward.text)}
-                  <span className="text-xs font-semibold mt-1 px-2">{reward.text}</span>
+                  <span className="text-sm font-bold px-2">{reward.text}</span>
                 </div>
               </div>
             ))}
@@ -199,7 +183,6 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, setSpin
             <div className="text-center space-y-2">
                 <p className="text-lg font-semibold">Chúc mừng! Bạn đã nhận được:</p>
                 <div className="inline-flex items-center gap-2 p-3 bg-accent/20 rounded-lg">
-                    {getIconForReward(rewards[finalRewardIndex].text)}
                     <span className="text-xl font-bold text-accent-foreground">{rewards[finalRewardIndex].text}</span>
                 </div>
             </div>
