@@ -31,7 +31,7 @@ interface LuckyWheelProps {
   onOpenChange: (open: boolean) => void;
   rewards: LuckyWheelReward[];
   spins: number;
-  setSpins: (spins: number) => void;
+  setSpins: (spins: number | ((prevSpins: number) => number)) => void;
 }
 
 export default function LuckyWheel({ open, onOpenChange, rewards, spins, setSpins }: LuckyWheelProps) {
@@ -42,16 +42,15 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, setSpin
   const wheelRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number>();
   const segmentDegrees = 360 / rewards.length;
-  const rotationSpeed = 10; // degrees per frame
+  const rotationSpeed = 10;
 
   useEffect(() => {
-    // Reset state when dialog is closed
     if (!open) {
       setTimeout(() => {
         setIsSpinning(false);
         setRotation(0);
         setFinalRewardIndex(null);
-      }, 300); // Wait for closing animation
+      }, 300);
     }
   }, [open]);
 
@@ -72,7 +71,7 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, setSpin
     if (isSpinning || spins <= 0) return;
     
     setFinalRewardIndex(null);
-    setSpins(spins - 1);
+    setSpins(spins => spins - 1);
     setIsSpinning(true);
     
     animationFrameRef.current = requestAnimationFrame(animateSpin);
@@ -85,27 +84,20 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, setSpin
         cancelAnimationFrame(animationFrameRef.current);
     }
     
-    const finalRotation = rotation;
-
-    // The winning segment is determined by which segment is at the top (pointed to by the arrow).
-    // The arrow is at 0 degrees. We need to find which segment's angle range contains 0.
-    // The rotation is of the wheel itself. A rotation of R means the 0-degree line of the wheel is now at R degrees.
-    // The pointer is fixed at the top (0 degrees, but visually it's -90deg from horizontal).
-    // A segment `i` spans from `i * segmentDegrees` to `(i+1) * segmentDegrees`.
-    // After rotation `R`, segment `i` is at `i*seg + R` to `(i+1)*seg + R`.
-    // The pointer is at 0 (or 360). We want to find `i` such that `i*seg+R (mod 360)` contains 0.
-    // This is equivalent to finding the segment under the pointer.
-    // The pointer is at the top. The rotation is clockwise.
-    // `finalRotation % 360` is the wheel's current orientation.
-    // `360 - (finalRotation % 360)` is the angle of the pointer relative to the wheel's 0 degree line.
-    // Add half a segment degree to be in the middle of the segment.
+    const currentRotation = rotation;
     const winningIndex = Math.floor(
-        ((360 - (finalRotation % 360) + (segmentDegrees / 2)) % 360) / segmentDegrees
+        ((360 - (currentRotation % 360) + (segmentDegrees / 2)) % 360) / segmentDegrees
     );
 
-    setRotation(finalRotation); // This keeps the wheel at its stopped position
+    setRotation(currentRotation);
     setFinalRewardIndex(winningIndex);
     setIsSpinning(false);
+      
+    // Handle special rewards
+    const reward = rewards[winningIndex];
+    if (reward.text.toLowerCase().includes('lượt')) {
+        setSpins(spins => spins + 1);
+    }
   };
   
   const handleClose = () => {
@@ -172,7 +164,7 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, setSpin
             className="relative w-80 h-80 rounded-full border-8 border-primary shadow-2xl overflow-hidden"
             style={{ 
               transform: `rotate(${rotation}deg)`,
-              transition: isSpinning ? 'none' : 'transform 4s cubic-bezier(0.2, 0.8, 0.2, 1)',
+              transition: isSpinning ? 'none' : 'transform 0s linear',
             }}
           >
             {rewards.map((reward, index) => (

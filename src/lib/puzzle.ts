@@ -37,7 +37,7 @@ export const samplePuzzle: PuzzleData = {
     { text: 'Nhân Đôi Điểm' },
     { text: 'Gợi Ý Miễn Phí' },
     { text: '50 Điểm' },
-    { text: 'Mất lượt' },
+    { text: 'Thêm Lượt' },
   ],
   solutionGrid: [
     [null, null, 'A', null, null],
