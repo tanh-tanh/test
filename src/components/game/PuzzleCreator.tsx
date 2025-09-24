@@ -7,9 +7,9 @@ import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PlusCircle, Trash2, Wand2, Sparkles, Gift, KeyRound } from 'lucide-react';
+import { PlusCircle, Trash2, Wand2, Sparkles, Gift, KeyRound, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import type { PuzzleData, Clue, LuckyWheelReward } from '@/lib/puzzle';
 import { generateGrid } from '@/lib/gridGenerator';
 import CrissCrossPuzzle from './CrissCrossPuzzle';
@@ -34,6 +34,8 @@ const puzzleSchema = z.object({
 
 type PuzzleFormValues = z.infer<typeof puzzleSchema>;
 
+const LOCAL_STORAGE_KEY = 'puzzleCreatorDraft';
+
 export default function PuzzleCreator() {
   const { toast } = useToast();
   const [generatedPuzzle, setGeneratedPuzzle] = useState<PuzzleData | null>(null);
@@ -51,6 +53,42 @@ export default function PuzzleCreator() {
       rewards: samplePuzzle.rewards,
     },
   });
+
+  const formValues = form.watch();
+
+  useEffect(() => {
+    // Load draft from localStorage on initial render
+    try {
+        const savedDraft = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (savedDraft) {
+            const draft = JSON.parse(savedDraft);
+            if (draft.formValues) {
+                form.reset(draft.formValues);
+            }
+            if (draft.generatedPuzzle) {
+                setGeneratedPuzzle(draft.generatedPuzzle);
+                setShowForm(false);
+            }
+        }
+    } catch (error) {
+        console.error("Failed to load draft from localStorage", error);
+        localStorage.removeItem(LOCAL_STORAGE_KEY);
+    }
+  }, []); // Run only once
+
+  useEffect(() => {
+    // Save draft to localStorage whenever formValues or generatedPuzzle changes
+    try {
+        const draft = {
+            formValues,
+            generatedPuzzle,
+        };
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(draft));
+    } catch (error) {
+        console.error("Failed to save draft to localStorage", error);
+    }
+  }, [formValues, generatedPuzzle]);
+
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -122,25 +160,47 @@ export default function PuzzleCreator() {
         }
     });
   }
+  
+  const handleReset = () => {
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+    form.reset({
+      title: '',
+      keyword: '',
+      acrossClues: [{ question: '', answer: '' }],
+      rewards: samplePuzzle.rewards,
+    });
+    setGeneratedPuzzle(null);
+    setShowForm(true);
+    toast({
+        title: 'Đã làm mới',
+        description: 'Bạn có thể bắt đầu tạo ô chữ mới từ đầu.',
+    });
+  };
 
   return (
     <>
       {showForm && (
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-lg">Tiêu đề Ô chữ</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ví dụ: Động vật hoang dã" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="flex justify-between items-start">
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem className="flex-grow">
+                      <FormLabel className="text-lg">Tiêu đề Ô chữ</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Ví dụ: Động vật hoang dã" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button variant="ghost" type="button" onClick={handleReset} className="ml-4 mt-8">
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    Tạo mới
+                </Button>
+            </div>
 
             <FormField
               control={form.control}
@@ -291,9 +351,15 @@ export default function PuzzleCreator() {
                       {generatedPuzzle.title}
                       </CardTitle>
                     </div>
-                    <Button variant="outline" onClick={() => { setGeneratedPuzzle(null); setShowForm(true); }}>
-                        Chỉnh sửa
-                    </Button>
+                    <div>
+                        <Button variant="outline" onClick={() => { setGeneratedPuzzle(null); setShowForm(true); }}>
+                            Chỉnh sửa
+                        </Button>
+                         <Button variant="ghost" type="button" onClick={handleReset} className="ml-2">
+                            <RotateCcw className="mr-2 h-4 w-4" />
+                            Tạo mới
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <CrissCrossPuzzle puzzleData={generatedPuzzle} />
@@ -305,4 +371,3 @@ export default function PuzzleCreator() {
   );
 }
 
-    
