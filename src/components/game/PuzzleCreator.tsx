@@ -216,7 +216,7 @@ export default function PuzzleCreator() {
             
             <div className="space-y-4">
                  <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-medium">Phần thưởng Vòng Quay May Mắn</h3>
+                  <h3 className="text-lg font-medium">Phần thưởng Đua Vịt</h3>
                 </div>
                  <FormField
                     control={form.control}
@@ -304,3 +304,5 @@ export default function PuzzleCreator() {
     </>
   );
 }
+
+    

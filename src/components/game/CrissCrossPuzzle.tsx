@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { checkAnswerAction } from '@/app/actions';
-import LuckyWheel from './LuckyWheel';
+import DuckRace from './DuckRace';
 import { samplePuzzle } from '@/lib/puzzle';
 import { Trophy, HelpCircle } from 'lucide-react';
 
@@ -31,7 +31,7 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
   );
   const [solvedClues, setSolvedClues] = useState<Record<string, boolean>>({});
   const [activeClue, setActiveClue] = useState<Clue | null>(clues.find(c => c.direction === 'across') || clues[0]);
-  const [isWheelOpen, setWheelOpen] = useState(false);
+  const [isRaceOpen, setRaceOpen] = useState(false);
   const [spins, setSpins] = useState(0);
   const [currentAnswer, setCurrentAnswer] = useState('');
 
@@ -118,13 +118,13 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
         setSolvedClues(prev => ({...prev, [activeClue.id]: true}));
         
         if (activeClue.direction === 'down') {
-          toast({ title: 'Từ khóa chính xác!', description: 'Bạn nhận được 2 lượt quay may mắn!', variant: 'default' });
+          toast({ title: 'Từ khóa chính xác!', description: 'Bạn nhận được 2 lượt đua vịt!', variant: 'default' });
           setSpins(spins => spins + 2);
-          setWheelOpen(true);
+          setRaceOpen(true);
         } else {
-          toast({ title: 'Chính xác!', description: 'Bạn nhận được 1 lượt quay may mắn!', variant: 'default' });
+          toast({ title: 'Chính xác!', description: 'Bạn nhận được 1 lượt đua vịt!', variant: 'default' });
           setSpins(spins => spins + 1);
-          setWheelOpen(true);
+          setRaceOpen(true);
         }
         
         let { row, col } = activeClue;
@@ -238,10 +238,10 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
          </div>
       )}
 
-      {isWheelOpen && (
-           <LuckyWheel 
-              open={isWheelOpen} 
-              onOpenChange={setWheelOpen}
+      {isRaceOpen && (
+           <DuckRace 
+              open={isRaceOpen} 
+              onOpenChange={setRaceOpen}
               rewards={rewards ?? samplePuzzle.rewards!}
               spins={spins}
               setSpins={setSpins}
@@ -250,3 +250,5 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
     </div>
   );
 }
+
+    
