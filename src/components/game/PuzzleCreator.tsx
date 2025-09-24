@@ -163,7 +163,7 @@ export default function PuzzleCreator() {
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-medium">Các câu đố hàng ngang</h3>
                    <FormDescription>
-                    Các đáp án này sẽ giao với từ khóa.
+                    Các đáp án sẽ được tự động sắp xếp để giao với từ khóa.
                   </FormDescription>
                 </div>
                 {fields.map((field, index) => (
