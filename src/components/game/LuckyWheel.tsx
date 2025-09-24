@@ -79,10 +79,10 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, setSpin
       
       setFinalRewardIndex(winningIndex);
       
-      // Apply a smooth transition to the final stop position
+      // Stop immediately
+      const finalRotation = currentAngle;
       if (wheelRef.current) {
-        wheelRef.current.style.transition = 'transform 3s ease-out';
-        const finalRotation = currentAngle; // Stop immediately
+        wheelRef.current.style.transition = 'none';
         wheelRef.current.style.transform = `rotate(${finalRotation}deg)`;
         setRotation(finalRotation);
       }
@@ -170,10 +170,10 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, setSpin
                 }}
               >
                 <div 
-                  className="flex flex-col items-center justify-center text-center"
-                  style={{ transform: `rotate(${segmentDegrees / 2}deg) translate(-50%, -25%)`}}
+                  className="flex flex-col items-center justify-center text-center w-[120%]"
+                  style={{ transform: `rotate(${segmentDegrees / 2}deg) translate(-50%, -50%) rotate(-45deg)`}}
                 >
-                  <span className="text-sm font-bold px-2">{reward.text}</span>
+                  <span className="text-sm font-bold px-2 block">{reward.text}</span>
                 </div>
               </div>
             ))}
