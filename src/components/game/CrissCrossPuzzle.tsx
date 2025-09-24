@@ -152,13 +152,6 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
     });
   }
   
-  const handleWheelClose = (spinCount: number) => {
-    setSpins(spinCount);
-    if(spinCount === 0) {
-      setWheelOpen(false);
-    }
-  }
-
   const isCellInActiveClue = (row: number, col: number) => {
     if (!activeClue) return false;
     const { row: startRow, col: startCol, direction, answer } = activeClue;
@@ -248,14 +241,12 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
       {isWheelOpen && (
            <LuckyWheel 
               open={isWheelOpen} 
-              onOpenChange={(isOpen) => !isOpen && handleWheelClose(0)}
+              onOpenChange={setWheelOpen}
               rewards={rewards ?? samplePuzzle.rewards!}
               spins={spins}
-              onSpinsChange={handleWheelClose}
+              setSpins={setSpins}
           />
        )}
     </div>
   );
 }
-
-    

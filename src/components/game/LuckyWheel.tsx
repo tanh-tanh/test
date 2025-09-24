@@ -31,10 +31,10 @@ interface LuckyWheelProps {
   onOpenChange: (open: boolean) => void;
   rewards: LuckyWheelReward[];
   spins: number;
-  onSpinsChange: (spins: number) => void;
+  setSpins: (spins: number) => void;
 }
 
-export default function LuckyWheel({ open, onOpenChange, rewards, spins, onSpinsChange }: LuckyWheelProps) {
+export default function LuckyWheel({ open, onOpenChange, rewards, spins, setSpins }: LuckyWheelProps) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [finalRewardIndex, setFinalRewardIndex] = useState<number | null>(null);
@@ -45,6 +45,17 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, onSpins
   const rotationSpeed = 10; // degrees per frame
 
   useEffect(() => {
+    // Reset state when dialog is closed
+    if (!open) {
+      setTimeout(() => {
+        setIsSpinning(false);
+        setRotation(0);
+        setFinalRewardIndex(null);
+      }, 300); // Wait for closing animation
+    }
+  }, [open]);
+
+  useEffect(() => {
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -52,19 +63,19 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, onSpins
     };
   }, []);
   
-  const spin = () => {
+  const animateSpin = () => {
     setRotation(prev => prev + rotationSpeed);
-    animationFrameRef.current = requestAnimationFrame(spin);
+    animationFrameRef.current = requestAnimationFrame(animateSpin);
   };
   
   const handleStartSpin = () => {
     if (isSpinning || spins <= 0) return;
     
     setFinalRewardIndex(null);
-    onSpinsChange(spins - 1);
+    setSpins(spins - 1);
     setIsSpinning(true);
     
-    animationFrameRef.current = requestAnimationFrame(spin);
+    animationFrameRef.current = requestAnimationFrame(animateSpin);
   };
 
   const handleStopSpin = () => {
@@ -74,21 +85,23 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, onSpins
       cancelAnimationFrame(animationFrameRef.current);
     }
     
+    // Determine the winning segment
     const currentRotation = rotation % 360;
-    const winningIndex = Math.floor((360 - currentRotation + segmentDegrees / 2) % 360 / segmentDegrees);
+    // Add some random spin to make it feel more random
+    const randomExtraRotation = Math.random() * 360 * 2 + 720; // Spin at least 2-4 more times
+    const finalRotation = rotation + randomExtraRotation;
 
+    const winningIndex = Math.floor(
+        ((360 - (finalRotation % 360)) + (segmentDegrees / 2)) % 360 / segmentDegrees
+    );
+    
+    setRotation(finalRotation);
     setFinalRewardIndex(winningIndex);
     setIsSpinning(false);
   };
   
   const handleClose = () => {
     onOpenChange(false);
-    // Reset state on close
-    setTimeout(() => {
-        setIsSpinning(false);
-        setRotation(0);
-        setFinalRewardIndex(null);
-    }, 300);
   }
 
   const getButtonProps = () => {
@@ -133,7 +146,7 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, onSpins
   const buttonProps = getButtonProps();
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px] bg-card border-accent shadow-lg">
         <DialogHeader>
           <DialogTitle className="text-center text-2xl font-bold text-primary">Vòng Quay May Mắn!</DialogTitle>
