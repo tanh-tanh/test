@@ -72,7 +72,7 @@ export default function PuzzleCreator() {
             if (!puzzleLayout) {
                 toast({
                     title: 'Lỗi tạo ô chữ',
-                    description: 'Không thể tạo được một ô chữ hợp lệ với các từ đã cho. Hãy thử lại với các từ khác hoặc thay đổi thứ tự của chúng.',
+                    description: 'Không thể tạo ô chữ. Hãy chắc chắn rằng mỗi từ hàng ngang đều có ít nhất một chữ cái chung với từ khóa hàng dọc.',
                     variant: 'destructive',
                 });
                 setGeneratedPuzzle(null);
