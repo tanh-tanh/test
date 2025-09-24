@@ -3,16 +3,11 @@
 
 type WordEntry = {
     word: string;
-    wordIndex: number;
+    wordIndex: number; // For across words, this is the index in the original across word array. For the keyword, it's -1.
     direction: 'across' | 'down';
-    x: number;
-    y: number;
+    x: number; // top-left x-coordinate
+    y: number; // top-left y-coordinate
     number: number;
-};
-
-type Intersection = {
-    x: number;
-    y: number;
 };
 
 type Layout = {
@@ -22,150 +17,113 @@ type Layout = {
     entries: WordEntry[];
 };
 
-export function generateGridFromClues(words: string[]): Layout | null {
-    if (words.length < 2) return null;
 
-    const sortedWords = words.map((word, index) => ({ word, index })).sort((a, b) => b.word.length - a.word.length);
-    
-    // Designate the longest word as the main 'down' keyword if possible, otherwise first is 'across'
-    const hasPotentialDown = sortedWords.length > 1;
-    
-    const firstWord = sortedWords[0];
-    const secondWord = sortedWords.length > 1 ? sortedWords[1] : null;
+/**
+ * Generates a crossword puzzle grid layout.
+ * @param keyword The main word, to be placed vertically (down).
+ * @param acrossWords An array of words to be placed horizontally (across), intersecting the keyword.
+ * @returns A Layout object or null if a valid layout cannot be generated.
+ */
+export function generateGrid(keyword: string, acrossWords: string[]): Layout | null {
+    if (!keyword || acrossWords.length === 0) {
+        return null;
+    }
 
-    const placedWords: WordEntry[] = [];
-    
-    // Try to place the first word 'down' and second word 'across' intersecting it
-    let successfullyPlacedInitialPair = false;
-    if (secondWord) {
-        for (let i = 0; i < firstWord.word.length; i++) {
-            for (let j = 0; j < secondWord.word.length; j++) {
-                if (firstWord.word[i] === secondWord.word[j]) {
-                    // Place first word (down)
-                    placedWords.push({
-                        word: firstWord.word,
-                        wordIndex: firstWord.index,
-                        direction: 'down',
-                        x: j,
-                        y: 0,
-                        number: 0 // temp
-                    });
-                     // Place second word (across)
-                    placedWords.push({
-                        word: secondWord.word,
-                        wordIndex: secondWord.index,
-                        direction: 'across',
-                        x: 0,
-                        y: i,
-                        number: 0 // temp
-                    });
-                    successfullyPlacedInitialPair = true;
-                    break;
-                }
-            }
-            if (successfullyPlacedInitialPair) break;
+    const keywordChars = keyword.split('');
+    const availableIntersections = new Map<string, number[]>(); // char -> array of indices in keyword
+
+    keywordChars.forEach((char, index) => {
+        if (!availableIntersections.has(char)) {
+            availableIntersections.set(char, []);
         }
-    }
+        availableIntersections.get(char)!.push(index);
+    });
 
-    if (!successfullyPlacedInitialPair) {
-        // Fallback to original placement logic if intersection fails
-        placedWords.push({ 
-            word: firstWord.word, 
-            wordIndex: firstWord.index,
-            direction: 'across', 
-            x: 0, 
-            y: 0,
-            number: 1,
-        });
-    }
+    const placedEntries: WordEntry[] = [];
+    const unplacedWords = [...acrossWords.map((word, index) => ({ word, index }))];
 
-    const wordsToPlace = sortedWords.slice(successfullyPlacedInitialPair ? 2 : 1);
+    // Place keyword first
+    const keywordEntry: Omit<WordEntry, 'number'> = {
+        word: keyword,
+        wordIndex: -1, // Special index for keyword
+        direction: 'down',
+        x: 0,
+        y: 0,
+    };
+    placedEntries.push(keywordEntry as WordEntry); // Number will be assigned later
 
-    // Place remaining words
-    for (const currentWord of wordsToPlace) {
+    // Attempt to place all across words
+    for (const wordObj of unplacedWords) {
         let placed = false;
-        
-        // Try to intersect with already placed words
-        for (let j = 0; j < placedWords.length; j++) {
-            const placedEntry = placedWords[j];
-            for (let k = 0; k < currentWord.word.length; k++) {
-                const charToMatch = currentWord.word[k];
-                for (let l = 0; l < placedEntry.word.length; l++) {
-                    if (placedEntry.word[l] === charToMatch) {
-                        const newDirection = placedEntry.direction === 'across' ? 'down' : 'across';
-                        let newX, newY;
+        // Find best intersection point
+        for (let i = 0; i < wordObj.word.length; i++) {
+            const charToMatch = wordObj.word[i];
+            if (availableIntersections.has(charToMatch)) {
+                 const keywordIndices = availableIntersections.get(charToMatch)!;
+                 for (const keywordIndex of keywordIndices) {
 
-                        if (newDirection === 'down') {
-                           newX = placedEntry.x + l;
-                           newY = placedEntry.y - k;
-                        } else {
-                           newX = placedEntry.x - k;
-                           newY = placedEntry.y + l;
-                        }
-                        
-                        const newEntry: Omit<WordEntry, 'number'> = { 
-                            word: currentWord.word, 
-                            wordIndex: currentWord.index,
-                            direction: newDirection, 
-                            x: newX, 
-                            y: newY 
-                        };
+                    const newEntry: Omit<WordEntry, 'number'> = {
+                        word: wordObj.word,
+                        wordIndex: wordObj.index,
+                        direction: 'across',
+                        x: keywordEntry.x - i,
+                        y: keywordEntry.y + keywordIndex,
+                    };
 
-                        if (canPlaceWord(newEntry, placedWords)) {
-                            placedWords.push({ ...newEntry, number: 0 }); // number will be assigned later
-                            placed = true;
-                            break;
-                        }
+                    if (canPlaceWord(newEntry, placedEntries)) {
+                        placedEntries.push(newEntry as WordEntry);
+                        placed = true;
+                        break;
                     }
-                }
-                if (placed) break;
+                 }
             }
             if (placed) break;
         }
-
         if (!placed) {
-            // Could not place the word, generation failed for this set of words
-            return null; 
+            // console.error(`Failed to place word: ${wordObj.word}`);
+            return null; // Cannot generate grid if a word can't be placed
         }
     }
-    
-    return createLayoutFromEntries(placedWords);
+
+    return createLayoutFromEntries(placedEntries);
 }
 
-function canPlaceWord(newEntry: Omit<WordEntry, 'number'>, placedWords: WordEntry[]): boolean {
-    let { x, y } = newEntry;
-
-    for (let i = 0; i < newEntry.word.length; i++) {
-        const currentX = newEntry.direction === 'across' ? x + i : x;
-        const currentY = newEntry.direction === 'down' ? y + i : y;
-
-        for (const p of placedWords) {
-            let pX = p.x;
-            let pY = p.y;
-            for (let j = 0; j < p.word.length; j++) {
-                const placedX = p.direction === 'across' ? pX + j : pX;
-                const placedY = p.direction === 'down' ? pY + j : pY;
-
-                // If cells are the same
-                if (placedX === currentX && placedY === currentY) {
-                    if (p.word[j] !== newEntry.word[i]) return false; // Words don't match at intersection
-                    if (p.direction === newEntry.direction) return false; // Parallel overlap
-                }
-                
-                // Check for adjacent parallel words
-                if (newEntry.direction === 'across' && p.direction === 'across') {
-                   if (Math.abs(currentY - placedY) === 1 && currentX >= placedX && currentX < placedX + p.word.length) {
-                       return false;
-                   }
-                }
-                 if (newEntry.direction === 'down' && p.direction === 'down') {
-                   if (Math.abs(currentX - placedX) === 1 && currentY >= placedY && currentY < placedY + p.word.length) {
-                       return false;
-                   }
+function canPlaceWord(newEntry: Omit<WordEntry, 'number'>, placedEntries: WordEntry[]): boolean {
+    // Check for collisions with other words
+    for (const p of placedEntries) {
+        if (p.direction === 'across') { // Check against other across words
+            // Check for parallel overlap
+            if (newEntry.y === p.y) {
+                 if (newEntry.x < p.x + p.word.length && newEntry.x + newEntry.word.length > p.x) {
+                     return false; // horizontal overlap
+                 }
+            }
+             // Check for adjacent parallel words (too close)
+            if (Math.abs(newEntry.y - p.y) === 1) {
+                if (newEntry.x < p.x + p.word.length && newEntry.x + newEntry.word.length > p.x) {
+                    return false; // too close vertically
                 }
             }
         }
+        // No need to check down vs down, since there's only one down word (the keyword)
     }
+
+    // Also check if the new word would lie on top of a non-intersecting part of the keyword
+     const keyword = placedEntries.find(e => e.direction === 'down')!;
+     for(let i = 0; i < newEntry.word.length; i++) {
+         const newX = newEntry.x + i;
+         const newY = newEntry.y;
+
+         // Is this cell part of the keyword?
+         if(newX === keyword.x && newY >= keyword.y && newY < keyword.y + keyword.word.length) {
+            // It is. Do the characters match?
+            if(newEntry.word[i] !== keyword.word[newY - keyword.y]) {
+                return false; // Conflict!
+            }
+         }
+     }
+
+
     return true;
 }
 
@@ -223,17 +181,27 @@ function createLayoutFromEntries(entries: Omit<WordEntry, 'number'>[]): Layout {
     for(const [, wordEntries] of sortedStarts) {
         // Sort by direction to have 'across' first if they share a start point
         const sortedWordEntries = wordEntries.sort((a,b) => a.direction.localeCompare(b.direction));
+        let needsNumber = true;
         for (const entry of sortedWordEntries) {
             numberedEntries.push({ ...entry, number: clueCounter });
         }
-        clueCounter++;
+        if(needsNumber) {
+           clueCounter++;
+        }
     }
 
+
+    // Re-sort the final entries to have the keyword (down clue) first, then across clues
+    const finalSortedEntries = numberedEntries.sort((a, b) => {
+        if (a.direction === 'down') return -1;
+        if (b.direction === 'down') return 1;
+        return a.number - b.number;
+    });
 
     return {
         width,
         height,
         grid,
-        entries: numberedEntries.sort((a,b) => a.wordIndex - b.wordIndex), // Sort back to original word order
+        entries: finalSortedEntries,
     };
 }

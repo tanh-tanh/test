@@ -3,19 +3,19 @@
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PlusCircle, Trash2, Wand2, Sparkles, Gift } from 'lucide-react';
+import { PlusCircle, Trash2, Wand2, Sparkles, Gift, KeyRound } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useTransition } from 'react';
 import type { PuzzleData, Clue, LuckyWheelReward } from '@/lib/puzzle';
-import { generateGridFromClues } from '@/lib/gridGenerator';
+import { generateGrid } from '@/lib/gridGenerator';
 import CrissCrossPuzzle from './CrissCrossPuzzle';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { samplePuzzle } from '@/lib/puzzle';
 
-const clueSchema = z.object({
+const acrossClueSchema = z.object({
     question: z.string().min(1, { message: 'Gợi ý không được để trống.' }),
     answer: z.string().min(2, { message: 'Đáp án cần ít nhất 2 ký tự.' }),
 });
@@ -26,7 +26,8 @@ const rewardSchema = z.object({
 
 const puzzleSchema = z.object({
   title: z.string().min(3, { message: 'Tiêu đề cần ít nhất 3 ký tự.' }),
-  clues: z.array(clueSchema).min(2, { message: 'Cần ít nhất 2 cặp gợi ý và đáp án.' }),
+  keyword: z.string().min(3, { message: 'Từ khóa cần ít nhất 3 ký tự.'}),
+  acrossClues: z.array(acrossClueSchema).min(1, { message: 'Cần ít nhất 1 câu đố hàng ngang.' }),
   rewards: z.array(rewardSchema).min(2, { message: 'Cần ít nhất 2 phần thưởng.' }).max(12, {message: 'Tối đa 12 phần thưởng.'}),
 });
 
@@ -42,8 +43,8 @@ export default function PuzzleCreator() {
     resolver: zodResolver(puzzleSchema),
     defaultValues: {
       title: '',
-      clues: [
-        { question: 'Từ khóa: ', answer: '' },
+      keyword: '',
+      acrossClues: [
         { question: '', answer: '' },
       ],
       rewards: samplePuzzle.rewards,
@@ -52,7 +53,7 @@ export default function PuzzleCreator() {
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
-    name: 'clues',
+    name: 'acrossClues',
   });
 
   const { fields: rewardFields, append: appendReward, remove: removeReward } = useFieldArray({
@@ -63,8 +64,10 @@ export default function PuzzleCreator() {
   function onSubmit(data: PuzzleFormValues) {
     startTransition(async () => {
         try {
-            const answers = data.clues.map(c => c.answer.replace(/\s+/g, '').toUpperCase());
-            const puzzleLayout = generateGridFromClues(answers);
+            const keyword = data.keyword.replace(/\s+/g, '').toUpperCase();
+            const acrossWords = data.acrossClues.map(c => c.answer.replace(/\s+/g, '').toUpperCase());
+            
+            const puzzleLayout = generateGrid(keyword, acrossWords);
 
             if (!puzzleLayout) {
                 toast({
@@ -75,16 +78,21 @@ export default function PuzzleCreator() {
                 setGeneratedPuzzle(null);
                 return;
             }
+            
+            const clues: Clue[] = puzzleLayout.entries.map((entry) => {
+                const isKeyword = entry.direction === 'down';
+                const question = isKeyword ? '' : data.acrossClues[entry.wordIndex].question;
 
-            const clues: Clue[] = puzzleLayout.entries.map((entry) => ({
-                id: `${entry.number}${entry.direction === 'across' ? 'a' : 'd'}`,
-                number: entry.number,
-                question: data.clues[entry.wordIndex].question,
-                answer: entry.word,
-                direction: entry.direction,
-                row: entry.y,
-                col: entry.x,
-            }));
+                return {
+                    id: `${entry.number}${entry.direction === 'across' ? 'a' : 'd'}`,
+                    number: entry.number,
+                    question: question,
+                    answer: entry.word,
+                    direction: entry.direction,
+                    row: entry.y,
+                    col: entry.x,
+                }
+            });
             
             const newPuzzle: PuzzleData = {
                 id: `custom-${Date.now()}`,
@@ -133,19 +141,39 @@ export default function PuzzleCreator() {
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="keyword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-lg flex items-center gap-2"><KeyRound className="w-5 h-5 text-yellow-500" /> Từ khóa (Hàng dọc)</FormLabel>
+                   <FormDescription>
+                    Đây là từ chính người chơi cần đoán, sẽ được đặt dọc.
+                  </FormDescription>
+                  <FormControl>
+                    <Input placeholder="Ví dụ: SUTU" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+
             <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-medium">Các Gợi Ý và Đáp Án</h3>
+                  <h3 className="text-lg font-medium">Các câu đố hàng ngang</h3>
+                   <FormDescription>
+                    Các đáp án này sẽ giao với từ khóa.
+                  </FormDescription>
                 </div>
-                 <p className="text-sm text-muted-foreground">Từ dài nhất sẽ được ưu tiên làm từ khóa hàng dọc.</p>
                 {fields.map((field, index) => (
                     <div key={field.id} className="p-4 border rounded-lg bg-background/50 space-y-4 relative">
                         <FormField
                             control={form.control}
-                            name={`clues.${index}.question`}
+                            name={`acrossClues.${index}.question`}
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Gợi ý {index + 1}</FormLabel>
+                                    <FormLabel>Câu hỏi {index + 1}</FormLabel>
                                     <FormControl>
                                         <Input placeholder="Ví dụ: Vua của muôn loài" {...field} />
                                     </FormControl>
@@ -155,18 +183,18 @@ export default function PuzzleCreator() {
                         />
                         <FormField
                             control={form.control}
-                            name={`clues.${index}.answer`}
+                            name={`acrossClues.${index}.answer`}
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Đáp án {index + 1}</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="Ví dụ: Sư tử" {...field} />
+                                        <Input placeholder="Ví dụ: SUTU" {...field} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
-                        {fields.length > 2 && (
+                        {fields.length > 1 && (
                         <Button
                             type="button"
                             variant="ghost"
@@ -181,7 +209,7 @@ export default function PuzzleCreator() {
                 ))}
                  <Button type="button" variant="outline" size="sm" onClick={() => append({ question: '', answer: '' })}>
                     <PlusCircle className="mr-2 h-4 w-4" />
-                    Thêm Gợi Ý & Đáp Án
+                    Thêm câu đố hàng ngang
                 </Button>
             </div>
             
@@ -257,9 +285,11 @@ export default function PuzzleCreator() {
         <div className="mt-12">
             <Card className="border-2 border-primary/20 shadow-lg">
                 <CardHeader className="flex-row justify-between items-start">
-                    <CardTitle className="text-center text-3xl font-bold text-primary tracking-wider font-headline">
-                    {generatedPuzzle.title}
-                    </CardTitle>
+                    <div>
+                      <CardTitle className="text-center text-3xl font-bold text-primary tracking-wider font-headline">
+                      {generatedPuzzle.title}
+                      </CardTitle>
+                    </div>
                     <Button variant="outline" onClick={() => { setGeneratedPuzzle(null); setShowForm(true); }}>
                         Chỉnh sửa
                     </Button>

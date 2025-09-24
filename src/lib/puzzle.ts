@@ -1,7 +1,7 @@
 export type Clue = {
   id: string;
   number: number;
-  question: string;
+  question: string; // Empty for the keyword (down clue)
   answer: string;
   direction: 'across' | 'down';
   row: number;
@@ -26,10 +26,10 @@ export const samplePuzzle: PuzzleData = {
   title: 'Văn Hoá Việt Nam',
   gridSize: { rows: 5, cols: 5 },
   clues: [
-    { id: '1a', number: 1, question: 'Trang phục truyền thống cho phụ nữ', answer: 'AODAI', direction: 'across', row: 1, col: 0 },
-    { id: '2d', number: 2, question: 'Từ khóa: Món ăn nước nổi tiếng của Việt Nam', answer: 'PHO', direction: 'down', row: 0, col: 2 },
-    { id: '3a', number: 3, question: 'Quốc hoa của Việt Nam', answer: 'SEN', direction: 'across', row: 3, col: 1 },
-    { id: '4d', number: 4, question: 'Từ khóa: Phụ kiện che nắng hình chóp', answer: 'NON', direction: 'down', row: 2, col: 4 },
+     { id: '1d', number: 1, question: '', answer: 'AODAI', direction: 'down', row: 0, col: 2 },
+     { id: '1a', number: 1, question: 'Trang phục truyền thống', answer: 'AODAI', direction: 'across', row: 0, col: 2 },
+     { id: '2a', number: 2, question: 'Quốc hoa của Việt Nam', answer: 'SEN', direction: 'across', row: 2, col: 1 },
+     { id: '3a', number: 3, question: 'Món ăn nước nổi tiếng', answer: 'PHO', direction: 'across', row: 4, col: 2 },
   ],
   rewards: [
     { text: '100 Điểm' },
@@ -40,10 +40,10 @@ export const samplePuzzle: PuzzleData = {
     { text: 'Phần Thưởng Bí Ẩn' },
   ],
   solutionGrid: [
-    [null, null, 'P', null, null],
-    ['A', 'O', 'D', 'A', 'I'],
-    [null, null, 'O', null, 'N'],
-    [null, 'S', 'E', 'N', 'O'],
-    [null, null, null, null, 'N'],
+    [null, null, 'A', null, null],
+    [null, 'S', 'O', 'E', 'N'],
+    [null, null, 'D', null, null],
+    [null, null, 'A', null, null],
+    ['P', 'H', 'I', 'null', null],
   ],
 };

@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { checkAnswerAction } from '@/app/actions';
 import LuckyWheel from './LuckyWheel';
 import { samplePuzzle } from '@/lib/puzzle';
-import { Trophy } from 'lucide-react';
+import { Trophy, HelpCircle } from 'lucide-react';
 
 type GridCell = {
   char: string | null;
@@ -21,7 +21,7 @@ type GridCell = {
 type UserGridState = (string | null)[][];
 
 export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleData }) {
-  const { gridSize, clues, solutionGrid, id: puzzleId, rewards } = puzzleData;
+  const { gridSize, clues, id: puzzleId, rewards } = puzzleData;
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
 
@@ -47,19 +47,25 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
 
     clues.forEach(clue => {
       let { row, col } = clue;
-      if (layout[row][col].number === null) {
+      // Check if the starting cell is within bounds
+      if (layout[row] && layout[row][col] && layout[row][col].number === null) {
         layout[row][col].number = clue.number;
       }
       
       for (let i = 0; i < clue.answer.length; i++) {
-        layout[row][col].isBlack = false;
-        layout[row][col].char = clue.answer[i];
-        if (clue.direction === 'across') {
-          layout[row][col].clues.across = clue.id;
-          col++;
+        // Bounds check for every cell in the word
+        if (row < gridSize.rows && col < gridSize.cols && layout[row] && layout[row][col]) {
+            layout[row][col].isBlack = false;
+            if (clue.direction === 'across') {
+              layout[row][col].clues.across = clue.id;
+              col++;
+            } else {
+              layout[row][col].clues.down = clue.id;
+              row++;
+            }
         } else {
-          layout[row][col].clues.down = clue.id;
-          row++;
+            // If we're out of bounds, stop processing this clue
+            break;
         }
       }
     });
@@ -92,7 +98,7 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
   }
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>, row: number, col: number) => {
-    const value = e.target.value.toUpperCase();
+    const value = e.target.value.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
     const newGrid = grid.map(r => [...r]);
     newGrid[row][col] = value.slice(0, 1);
     setGrid(newGrid);
@@ -180,7 +186,7 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
         if (activeClue.direction === 'down') {
           // Keyword guessed correctly!
           toast({ title: 'Từ khóa chính xác!', description: 'Bạn nhận được 2 lượt quay may mắn!', variant: 'default' });
-          setSpins(2);
+          setSpins(spins => spins + 2);
           setWheelOpen(true);
         } else {
           // Regular clue guessed correctly
@@ -221,7 +227,7 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
     }
   }
 
-  const downClues = useMemo(() => clues.filter(c => c.direction === 'down'), [clues]);
+  const downClue = useMemo(() => clues.find(c => c.direction === 'down'), [clues]);
   const acrossClues = useMemo(() => clues.filter(c => c.direction === 'across'), [clues]);
 
 
@@ -283,8 +289,8 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
         </div>
         {activeClue && !solvedClues[activeClue.id] && (
           <div className="mt-6 w-full max-w-md text-center">
-            <p className="font-semibold text-lg">{activeClue.number}. {activeClue.direction === 'across' ? 'Ngang' : 'Dọc (Từ khoá)'}</p>
-            <p className="text-muted-foreground mb-4">{activeClue.question}</p>
+            <p className="font-semibold text-lg">{activeClue.number}. {activeClue.direction === 'across' ? 'Ngang' : 'Dọc'}</p>
+            <p className="text-muted-foreground mb-4">{activeClue.question ? activeClue.question : "Dùng các chữ cái hàng ngang để đoán từ khóa."}</p>
             <Button onClick={checkCurrentClue} disabled={isPending}>
               {isPending ? 'Đang kiểm tra...' : 'Kiểm tra đáp án'}
             </Button>
@@ -302,19 +308,18 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
       </div>
 
       <div className="space-y-6">
-        <div>
-          <h3 className="font-bold text-xl text-primary mb-2 flex items-center gap-2"><Trophy className="text-yellow-500"/> Hàng dọc (Từ khóa)</h3>
-          <ul className="space-y-1">
-            {downClues.map(clue => (
-              <li key={clue.id}
-                className={cn("p-2 rounded-md cursor-pointer", isClueActive(clue.id) && "bg-accent/50 font-bold", solvedClues[clue.id] && "line-through text-muted-foreground")}
-                onClick={() => { setActiveClue(clue); focusOnClue(clue); }}
+        {downClue && (
+          <div>
+            <h3 className="font-bold text-xl text-primary mb-2 flex items-center gap-2"><Trophy className="text-yellow-500"/> Hàng dọc (Từ khóa)</h3>
+            <div
+                className={cn("p-2 rounded-md cursor-pointer flex items-center gap-2", isClueActive(downClue.id) && "bg-accent/50 font-bold", solvedClues[downClue.id] && "line-through text-muted-foreground")}
+                onClick={() => { setActiveClue(downClue); focusOnClue(downClue); }}
               >
-                <strong>{clue.number}.</strong> {clue.question}
-              </li>
-            ))}
-          </ul>
-        </div>
+                <HelpCircle className="w-4 h-4 text-muted-foreground"/> 
+                <span>Đoán từ khóa ẩn</span>
+            </div>
+          </div>
+        )}
         <div>
           <h3 className="font-bold text-xl text-primary mb-2">Hàng ngang</h3>
           <ul className="space-y-1">
