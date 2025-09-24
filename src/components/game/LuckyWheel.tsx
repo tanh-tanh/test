@@ -1,10 +1,10 @@
 
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useTransition } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Gift, Star, Trophy, ArrowRight, Sparkles, Rewind, Frown } from 'lucide-react';
+import { Gift, Star, Trophy, ArrowRight, Sparkles, Rewind, Frown, Users } from 'lucide-react';
 import type { LuckyWheelReward } from '@/lib/puzzle';
 
 
@@ -15,6 +15,7 @@ const ICONS: Record<string, React.ReactNode> = {
     'bí ẩn': <Sparkles className="w-8 h-8 text-purple-500" />,
     'thêm lượt': <Rewind className="w-8 h-8 text-green-500" />,
     'mất lượt': <Frown className="w-8 h-8 text-gray-400" />,
+    'nhường lượt': <Users className="w-8 h-8 text-cyan-500" />,
 };
 
 const getIconForReward = (text: string) => {
@@ -43,6 +44,7 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, setSpin
   
   const wheelRef = useRef<HTMLDivElement>(null);
   const segmentDegrees = 360 / rewards.length;
+  const spinInterval = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!open) {
@@ -50,6 +52,14 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, setSpin
         setIsSpinning(false);
         setRotation(0);
         setFinalRewardIndex(null);
+        if (spinInterval.current) {
+          clearInterval(spinInterval.current);
+          spinInterval.current = null;
+        }
+         if(wheelRef.current){
+           wheelRef.current.style.transition = 'none';
+           wheelRef.current.style.transform = `rotate(0deg)`;
+         }
       }, 300);
     }
   }, [open]);
@@ -62,35 +72,43 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, setSpin
     setSpins(spins => spins - 1);
     setIsSpinning(true);
     
-    const spinDuration = 5000; // 5 seconds for spinning
-    const randomDegrees = Math.random() * 360;
-    // Add multiple full rotations for effect
-    const totalRotation = rotation + (360 * 5) + randomDegrees;
-
-    // This is a simple CSS transition based spin.
-    if(wheelRef.current){
-        wheelRef.current.style.transition = `transform ${spinDuration}ms cubic-bezier(0.25, 0.1, 0.25, 1)`;
-        wheelRef.current.style.transform = `rotate(${totalRotation}deg)`;
+    if (wheelRef.current) {
+        wheelRef.current.style.transition = 'none'; // Remove transition for interval-based rotation
     }
 
-    setRotation(totalRotation);
-
-    setTimeout(() => {
-        setIsSpinning(false);
-        const currentRotation = totalRotation % 360;
-        const winningIndex = Math.floor(
-            ((360 - currentRotation + (segmentDegrees / 2)) % 360) / segmentDegrees
-        );
-        setFinalRewardIndex(winningIndex);
-        
-        const reward = rewards[winningIndex];
-        if (reward.text.toLowerCase().includes('thêm lượt')) {
-            setSpins(spins => spins + 1);
+    let currentRotation = rotation;
+    spinInterval.current = setInterval(() => {
+        currentRotation += 20; // Adjust speed of rotation
+        if (wheelRef.current) {
+            wheelRef.current.style.transform = `rotate(${currentRotation}deg)`;
         }
-
-    }, spinDuration + 100);
+    }, 16);
   };
   
+  const handleStopSpin = () => {
+      if (!isSpinning || !spinInterval.current) return;
+      
+      clearInterval(spinInterval.current);
+      spinInterval.current = null;
+      
+      const currentAngle = parseFloat(wheelRef.current?.style.transform.replace('rotate(', '').replace('deg)', '')) || 0;
+      setRotation(currentAngle);
+      
+      setIsSpinning(false);
+
+      const winningIndex = Math.floor(
+          ((360 - (currentAngle % 360) + (segmentDegrees / 2)) % 360) / segmentDegrees
+      );
+      
+      setFinalRewardIndex(winningIndex);
+      
+      const reward = rewards[winningIndex];
+      if (reward.text.toLowerCase().includes('thêm lượt')) {
+          setSpins(spins => spins + 1);
+      }
+  }
+
+
   const handleClose = () => {
     onOpenChange(false);
   }
@@ -98,9 +116,9 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, setSpin
   const getButtonProps = () => {
       if (isSpinning) {
           return {
-              text: 'Đang quay...',
-              action: () => {},
-              disabled: true,
+              text: 'Dừng Lại!',
+              action: handleStopSpin,
+              disabled: false,
           }
       }
       if (finalRewardIndex !== null) {
@@ -153,7 +171,7 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, setSpin
             ref={wheelRef}
             className="relative w-80 h-80 rounded-full border-8 border-primary shadow-2xl overflow-hidden"
             style={{ 
-              transform: `rotate(0deg)`,
+              transform: `rotate(${rotation}deg)`,
             }}
           >
             {rewards.map((reward, index) => (

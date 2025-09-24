@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -72,7 +73,7 @@ export default function PuzzleCreator() {
             if (!puzzleLayout) {
                 toast({
                     title: 'Lỗi tạo ô chữ',
-                    description: 'Không thể tạo ô chữ. Hãy chắc chắn rằng mỗi từ hàng ngang đều có ít nhất một chữ cái chung với từ khóa hàng dọc và có thể được xếp mà không chồng chéo.',
+                    description: 'Không thể tạo ô chữ. Hãy chắc chắn rằng mỗi từ hàng ngang có chữ cái chung với từ khóa và có thể được xếp mà không chồng chéo lên nhau.',
                     variant: 'destructive',
                 });
                 setGeneratedPuzzle(null);

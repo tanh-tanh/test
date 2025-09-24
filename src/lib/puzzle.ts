@@ -1,3 +1,4 @@
+
 export type Clue = {
   id: string;
   number: number;
@@ -36,7 +37,7 @@ export const samplePuzzle: PuzzleData = {
     { text: 'Thêm Lượt' },
     { text: '50 Điểm' },
     { text: 'Mất Lượt' },
-    { text: 'Gợi Ý' },
+    { text: 'Nhường Lượt' },
     { text: '200 Điểm' },
   ],
   solutionGrid: [
