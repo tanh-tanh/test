@@ -22,7 +22,7 @@ export type ValidateVietnameseAnswerInput = z.infer<typeof ValidateVietnameseAns
 
 const ValidateVietnameseAnswerOutputSchema = z.object({
   isCorrect: z.boolean().describe('Indicates whether the user answer is correct.'),
-  message: z.string().optional().describe('Feedback message to the user, if any.'),
+  message: z.string().optional().describe('Feedback message to the user, in Vietnamese.'),
 });
 export type ValidateVietnameseAnswerOutput = z.infer<typeof ValidateVietnameseAnswerOutputSchema>;
 
@@ -40,15 +40,15 @@ const validateVietnameseAnswerPrompt = ai.definePrompt({
   output: {
     schema: ValidateVietnameseAnswerOutputSchema,
   },
-  prompt: `You are a Criss Cross puzzle validator. Given a puzzle, question, and a user's answer in Vietnamese, determine if the answer is correct. Compare the userAnswer to the correctAnswer, accounting for potential minor variations in accents or spacing.
+  prompt: `You are a Criss Cross puzzle validator for Vietnamese players. Your task is to determine if the user's answer is correct.
+You MUST compare the 'userAnswer' with the 'correctAnswer'.
+- The user's answer is: "{{{userAnswer}}}"
+- The correct answer is: "{{{correctAnswer}}}"
 
-Consider the following:
-- The puzzle ID is {{{puzzleId}}}.
-- The question ID is {{{questionId}}}.
-- The user's answer is: "{{{userAnswer}}}".
-- The correct answer is: "{{{correctAnswer}}}".
-
-Return a JSON object indicating whether the answer is correct. If the answer is incorrect, provide a helpful feedback message in Vietnamese.
+Account for potential minor variations in accents or spacing, but be strict.
+- If the answer is correct, set isCorrect to true and provide a positive feedback message in Vietnamese (e.g., "Chính xác!").
+- If the answer is incorrect, set isCorrect to false and provide a neutral, encouraging feedback message in Vietnamese (e.g., "Chưa đúng, hãy thử lại nhé.").
+- DO NOT reveal the correct answer in your feedback message under any circumstances.
 `,
 });
 

@@ -4,7 +4,6 @@ import { useEffect, useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Gift, Star, Trophy, ArrowRight, Sparkles, Rewind } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import type { LuckyWheelReward } from '@/lib/puzzle';
 
 
@@ -41,10 +40,8 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, onSpins
   
   const wheelRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number>();
-
   const segmentDegrees = 360 / rewards.length;
 
-  // Cleanup animation frame on unmount
   useEffect(() => {
     return () => {
       if (animationFrameRef.current) {
@@ -53,23 +50,22 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, onSpins
     };
   }, []);
 
-  // Reset state when dialog closes/opens
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      setFinalRewardIndex(null);
+      // Do not reset rotation to allow it to continue from where it left off
+    } else {
       setIsSpinning(false);
       setRotation(0);
       setFinalRewardIndex(null);
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
-    } else {
-      setFinalRewardIndex(null);
-      setRotation(0); // Reset rotation for new session
     }
   }, [open]);
 
   const spin = () => {
-    setRotation(prev => prev + 10); // Adjust speed here
+    setRotation(prev => prev + 10);
     animationFrameRef.current = requestAnimationFrame(spin);
   };
   
@@ -80,7 +76,7 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, onSpins
     setFinalRewardIndex(null);
     onSpinsChange(spins - 1);
     
-    animationFrameRef.current = requestAnimationFrame(spin);
+    requestAnimationFrame(spin);
   };
 
   const handleStopSpin = () => {
@@ -90,21 +86,12 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, onSpins
       cancelAnimationFrame(animationFrameRef.current);
     }
     
-    // Calculate where it stops
     const currentRotation = rotation % 360;
-    const randomStopPoint = Math.floor(Math.random() * 360);
-    const totalRotation = rotation - currentRotation + 360 * 4 + randomStopPoint; // 4 extra spins for slowdown
-    
-    // Calculate final reward
-    const finalAngle = totalRotation % 360;
-    const winningIndex = Math.floor((360 - finalAngle + segmentDegrees / 2) / segmentDegrees) % rewards.length;
+    // Calculate winning index based on current rotation
+    const winningIndex = Math.floor((360 - currentRotation + segmentDegrees / 2) % 360 / segmentDegrees);
 
-    setRotation(totalRotation);
-
-    setTimeout(() => {
-        setIsSpinning(false);
-        setFinalRewardIndex(winningIndex);
-    }, 4000); // Wait for slowdown animation to finish
+    setFinalRewardIndex(winningIndex);
+    setIsSpinning(false);
   };
   
   const handleClose = () => {
@@ -159,7 +146,7 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, onSpins
           <DialogTitle className="text-center text-2xl font-bold text-primary">Vòng Quay May Mắn!</DialogTitle>
            {finalRewardIndex === null && (
             <DialogDescription className="text-center">
-                Bạn còn {spins + (isSpinning ? 1: 0)} lượt quay.
+                Bạn còn {spins + (isSpinning ? 1 : 0)} lượt quay.
             </DialogDescription>
            )}
         </DialogHeader>
