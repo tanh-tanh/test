@@ -27,8 +27,8 @@ export const samplePuzzle: PuzzleData = {
   gridSize: { rows: 5, cols: 5 },
   clues: [
      { id: '1d', number: 1, question: '', answer: 'AODAI', direction: 'down', row: 0, col: 2 },
-     { id: '1a', number: 1, question: 'Trang phục truyền thống', answer: 'AODAI', direction: 'across', row: 0, col: 2 },
-     { id: '2a', number: 2, question: 'Quốc hoa của Việt Nam', answer: 'SEN', direction: 'across', row: 2, col: 1 },
+     { id: '1a', number: 1, question: 'Trang phục truyền thống', answer: 'AODAI', direction: 'across', row: 2, col: 0 },
+     { id: '2a', number: 2, question: 'Quốc hoa của Việt Nam', answer: 'SEN', direction: 'across', row: 0, col: 2 },
      { id: '3a', number: 3, question: 'Món ăn nước nổi tiếng', answer: 'PHO', direction: 'across', row: 4, col: 2 },
   ],
   rewards: [
@@ -41,9 +41,9 @@ export const samplePuzzle: PuzzleData = {
   ],
   solutionGrid: [
     [null, null, 'A', null, null],
-    [null, 'S', 'O', 'E', 'N'],
-    [null, null, 'D', null, null],
+    [null, null, 'O', null, null],
+    ['A', 'O', 'D', 'A', 'I'],
     [null, null, 'A', null, null],
-    ['P', 'H', 'I', 'null', null],
+    [null, null, 'I', null, null],
   ],
 };

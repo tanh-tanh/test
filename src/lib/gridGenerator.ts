@@ -91,21 +91,14 @@ export function generateGrid(keyword: string, acrossWords: string[]): Layout | n
 function canPlaceWord(newEntry: Omit<WordEntry, 'number'>, placedEntries: WordEntry[]): boolean {
     // Check for collisions with other words
     for (const p of placedEntries) {
-        if (p.direction === 'across') { // Check against other across words
-            // Check for parallel overlap
+        if (p.direction === 'across' && newEntry.direction === 'across') { // Check against other across words
+            // Check for parallel overlap in the same row
             if (newEntry.y === p.y) {
                  if (newEntry.x < p.x + p.word.length && newEntry.x + newEntry.word.length > p.x) {
                      return false; // horizontal overlap
                  }
             }
-             // Check for adjacent parallel words (too close)
-            if (Math.abs(newEntry.y - p.y) === 1) {
-                if (newEntry.x < p.x + p.word.length && newEntry.x + newEntry.word.length > p.x) {
-                    return false; // too close vertically
-                }
-            }
         }
-        // No need to check down vs down, since there's only one down word (the keyword)
     }
 
     // Also check if the new word would lie on top of a non-intersecting part of the keyword
@@ -195,13 +188,46 @@ function createLayoutFromEntries(entries: Omit<WordEntry, 'number'>[]): Layout {
     const finalSortedEntries = numberedEntries.sort((a, b) => {
         if (a.direction === 'down') return -1;
         if (b.direction === 'down') return 1;
+        // Prioritize the keyword's across clue if it exists
+        if (a.word === b.word && a.direction === 'across' && b.direction === 'down') return -1;
+        if (a.word === b.word && a.direction === 'down' && b.direction === 'across') return 1;
+
         return a.number - b.number;
     });
+    
+    // De-duplicate clues that share the same start position, number, and word.
+    const uniqueEntries: WordEntry[] = [];
+    const seen = new Set<string>();
+    
+    finalSortedEntries.forEach(entry => {
+        // A unique clue is identified by its number and direction.
+        const key = `${entry.number}-${entry.direction}`;
+        if (!seen.has(key)) {
+            uniqueEntries.push(entry);
+            seen.add(key);
+        } else {
+             // Handle the special case where an across word is the same as the keyword
+             // and they start at the same point. We want to keep both.
+             const keywordEntry = finalSortedEntries.find(e => e.direction === 'down');
+             if(keywordEntry && entry.word === keywordEntry.word && entry.direction === 'across' && !uniqueEntries.find(e => e.id === entry.id)) {
+                 uniqueEntries.push(entry);
+             }
+        }
+    });
+
+
+    // Ensure the main keyword (down) is always first.
+    uniqueEntries.sort((a, b) => {
+        if (a.direction === 'down') return -1;
+        if (b.direction === 'down') return 1;
+        return a.number - b.number;
+    });
+
 
     return {
         width,
         height,
         grid,
-        entries: finalSortedEntries,
+        entries: uniqueEntries,
     };
 }

@@ -48,13 +48,13 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
 
     clues.forEach(clue => {
       let { row, col } = clue;
-      if (row < gridSize.rows && col < gridSize.cols && layout[row][col] && layout[row][col].number === null) {
+      if (row < gridSize.rows && col < gridSize.cols && layout[row][col].number === null) {
         layout[row][col].number = clue.number;
       }
       
       for (let i = 0; i < clue.answer.length; i++) {
         if (row < gridSize.rows && col < gridSize.cols) {
-            if (layout[row] && layout[row][col]) {
+            if (layout[row]?.[col]) {
               layout[row][col].isBlack = false;
               if (clue.direction === 'across') {
                 layout[row][col].clues.across = clue.id;
@@ -166,6 +166,11 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
     }
   }
 
+  const allCluesSolved = useMemo(() => {
+      return clues.every(clue => solvedClues[clue.id]);
+  }, [clues, solvedClues]);
+
+
   return (
     <div className="flex flex-col items-center gap-8">
       <div 
@@ -207,12 +212,12 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
         )}
       </div>
 
-      {activeClue && !solvedClues[activeClue.id] ? (
+      {activeClue && !allCluesSolved ? (
         <div className="mt-4 w-full max-w-lg text-center bg-card p-6 rounded-lg shadow-md border">
           <p className="font-semibold text-xl text-primary">
               {activeClue.number}. {activeClue.direction === 'across' ? 'Ngang' : 'Dọc'} ({activeClue.answer.length} chữ cái)
           </p>
-          <p className="text-muted-foreground mb-4 h-6">
+          <p className="text-muted-foreground mb-4 h-12 flex items-center justify-center">
               {activeClue.question ? activeClue.question : "Dùng các chữ cái đã biết để đoán từ khóa."}
           </p>
           <form onSubmit={(e) => { e.preventDefault(); checkCurrentClue(); }} className="flex gap-2">
@@ -223,9 +228,9 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
               value={currentAnswer}
               onChange={(e) => setCurrentAnswer(e.target.value)}
               className="text-center text-lg"
-              disabled={isPending}
+              disabled={isPending || solvedClues[activeClue.id]}
             />
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending || solvedClues[activeClue.id]}>
               {isPending ? 'Đang kiểm tra...' : 'Kiểm tra'}
             </Button>
           </form>

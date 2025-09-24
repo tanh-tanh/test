@@ -17,7 +17,7 @@ import { samplePuzzle } from '@/lib/puzzle';
 
 const acrossClueSchema = z.object({
     question: z.string().min(1, { message: 'Câu hỏi không được để trống.' }),
-    answer: z.string().min(2, { message: 'Đáp án cần ít nhất 2 ký tự.' }),
+    answer: z.string().min(1, { message: 'Đáp án không được để trống.' }),
 });
 
 const rewardSchema = z.object({
@@ -72,7 +72,7 @@ export default function PuzzleCreator() {
             if (!puzzleLayout) {
                 toast({
                     title: 'Lỗi tạo ô chữ',
-                    description: 'Không thể tạo ô chữ. Hãy chắc chắn rằng mỗi từ hàng ngang đều có ít nhất một chữ cái chung với từ khóa hàng dọc.',
+                    description: 'Không thể tạo ô chữ. Hãy chắc chắn rằng mỗi từ hàng ngang đều có ít nhất một chữ cái chung với từ khóa hàng dọc và có thể được xếp mà không chồng chéo.',
                     variant: 'destructive',
                 });
                 setGeneratedPuzzle(null);
