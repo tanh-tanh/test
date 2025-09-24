@@ -3,96 +3,90 @@
 import { useEffect, useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Gift, Star, Trophy, ArrowRight, Sparkles } from 'lucide-react';
+import { Gift, Star, Trophy, ArrowRight, Sparkles, Rewind } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { LuckyWheelReward } from '@/lib/puzzle';
+
+
+const ICONS: Record<string, React.ReactNode> = {
+    'Điểm': <Trophy className="w-8 h-8 text-yellow-500" />,
+    'Gợi Ý': <Gift className="w-8 h-8 text-red-500" />,
+    'Nhân Đôi': <Star className="w-8 h-8 text-blue-500" />,
+    'Bí Ẩn': <Sparkles className="w-8 h-8 text-purple-500" />,
+    'Lượt': <Rewind className="w-8 h-8 text-green-500" />,
+};
+
+const getIconForReward = (text: string) => {
+    for(const key in ICONS) {
+        if (text.toLowerCase().includes(key.toLowerCase())) {
+            return ICONS[key];
+        }
+    }
+    return <Star className="w-8 h-8 text-gray-500" />;
+}
+
 
 interface LuckyWheelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  rewards: LuckyWheelReward[];
+  spins: number;
+  onSpinsChange: (spins: number) => void;
 }
 
-const rewards = [
-  { icon: <Trophy className="w-8 h-8 text-yellow-500" />, text: '100 Điểm!', color: 'gold' },
-  { icon: <Gift className="w-8 h-8 text-red-500" />, text: 'Một Gợi Ý', color: '#EF4444' },
-  { icon: <Star className="w-8 h-8 text-blue-500" />, text: 'Nhân Đôi Điểm', color: '#3B82F6' },
-  { icon: <Sparkles className="w-8 h-8 text-purple-500" />, text: 'Phần Thưởng Bí Ẩn', color: '#8B5CF6' },
-  { icon: <Trophy className="w-8 h-8 text-yellow-500" />, text: '50 Điểm', color: 'gold' },
-  { icon: <Gift className="w-8 h-8 text-red-500" />, text: 'Thêm Lượt', color: '#EF4444' },
-];
-
-export default function LuckyWheel({ open, onOpenChange }: LuckyWheelProps) {
+export default function LuckyWheel({ open, onOpenChange, rewards, spins, onSpinsChange }: LuckyWheelProps) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [spinDegrees, setSpinDegrees] = useState(0);
   const [finalRewardIndex, setFinalRewardIndex] = useState<number | null>(null);
-  const [canSpin, setCanSpin] = useState(true);
   const wheelRef = useRef<HTMLDivElement>(null);
   
-  const transitionDuration = 10000; // 10s for spinning
+  const transitionDuration = 4000; // 4s for spinning
 
   useEffect(() => {
-    if (open) {
-      // Reset state when dialog opens
+    if (!open) {
+      // Reset state when dialog closes
       setIsSpinning(false);
       setSpinDegrees(0);
       setFinalRewardIndex(null);
-      setCanSpin(true);
        if (wheelRef.current) {
         wheelRef.current.style.transition = 'none';
         wheelRef.current.style.transform = `rotate(0deg)`;
       }
+    } else {
+        setFinalRewardIndex(null);
     }
   }, [open]);
 
   const handleSpin = () => {
-    if (!canSpin) return;
+    if (isSpinning || spins <= 0) return;
     
     setFinalRewardIndex(null);
-    setCanSpin(false);
     setIsSpinning(true);
 
-    // Huge rotation to make it spin for a long time
-    const fullSpins = 10;
-    const newSpinDegrees = spinDegrees + 360 * fullSpins;
+    const randomExtraDegrees = Math.floor(Math.random() * 360);
+    const fullSpins = 5;
+    const newSpinDegrees = spinDegrees + 360 * fullSpins + randomExtraDegrees;
     
     if (wheelRef.current) {
-        wheelRef.current.style.transition = `transform ${transitionDuration}ms linear`;
+        wheelRef.current.style.transition = `transform ${transitionDuration}ms cubic-bezier(0.25, 0.1, 0.25, 1)`;
         wheelRef.current.style.transform = `rotate(${newSpinDegrees}deg)`;
     }
 
     setSpinDegrees(newSpinDegrees);
+    onSpinsChange(spins - 1);
+
+    setTimeout(() => {
+        setIsSpinning(false);
+        const segmentDegrees = 360 / rewards.length;
+        const normalizedAngle = (newSpinDegrees % 360); 
+        const stoppedSegmentIndex = Math.floor((360 - normalizedAngle) / segmentDegrees) % rewards.length;
+        setFinalRewardIndex(stoppedSegmentIndex);
+    }, transitionDuration);
   };
   
-  const handleStop = () => {
-    if (!isSpinning || !wheelRef.current) return;
-
-    // Get current rotation angle from the transform property
-    const computedStyle = window.getComputedStyle(wheelRef.current);
-    const transform = computedStyle.transform;
-    
-    let currentAngle = 0;
-    if (transform !== 'none') {
-      const matrix = new DOMMatrixReadOnly(transform);
-      // 'a' is cos(angle), 'b' is sin(angle)
-      currentAngle = Math.atan2(matrix.b, matrix.a) * (180 / Math.PI);
-    }
-    
-    // Freeze the wheel at its current position by removing the transition
-    wheelRef.current.style.transition = 'none';
-    wheelRef.current.style.transform = `rotate(${currentAngle}deg)`;
-    
-    setSpinDegrees(currentAngle);
-    setIsSpinning(false);
-
-    // Calculate the final reward based on where it stopped
-    const segmentDegrees = 360 / rewards.length;
-    // Normalize angle to be positive from 0 to 360
-    const normalizedAngle = (360 - (currentAngle % 360)) % 360; 
-    const stoppedSegmentIndex = Math.floor(normalizedAngle / segmentDegrees);
-    
-    setFinalRewardIndex(stoppedSegmentIndex);
-    // Allow to spin again after a short delay
-    setTimeout(() => setCanSpin(true), 500); 
-  };
+  const handleClose = () => {
+    onOpenChange(false);
+  }
 
   const segmentDegrees = 360 / rewards.length;
 
@@ -102,7 +96,7 @@ export default function LuckyWheel({ open, onOpenChange }: LuckyWheelProps) {
         <DialogHeader>
           <DialogTitle className="text-center text-2xl font-bold text-primary">Vòng Quay May Mắn!</DialogTitle>
           <DialogDescription className="text-center">
-            Bạn đã trả lời đúng! Hãy quay để nhận phần thưởng.
+            Bạn có {spins} lượt quay.
           </DialogDescription>
         </DialogHeader>
         <div className="relative flex flex-col items-center justify-center p-8">
@@ -126,7 +120,7 @@ export default function LuckyWheel({ open, onOpenChange }: LuckyWheelProps) {
                   className="flex flex-col items-center justify-center text-center"
                   style={{ transform: `rotate(${segmentDegrees / 2}deg) translate(-50%, -25%)`}}
                 >
-                  {reward.icon}
+                  {getIconForReward(reward.text)}
                   <span className="text-xs font-semibold mt-1 px-2">{reward.text}</span>
                 </div>
               </div>
@@ -137,19 +131,22 @@ export default function LuckyWheel({ open, onOpenChange }: LuckyWheelProps) {
             <div className="text-center space-y-4">
                 <p className="text-lg font-semibold">Chúc mừng! Bạn đã nhận được:</p>
                 <div className="inline-flex items-center gap-2 p-3 bg-accent/20 rounded-lg">
-                    {rewards[finalRewardIndex].icon}
+                    {getIconForReward(rewards[finalRewardIndex].text)}
                     <span className="text-xl font-bold text-accent-foreground">{rewards[finalRewardIndex].text}</span>
                 </div>
-                <Button onClick={() => onOpenChange(false)} className="w-full">Tuyệt vời!</Button>
+                {spins > 0 ? (
+                     <Button onClick={handleSpin} className="w-full">Quay tiếp ({spins} lượt)</Button>
+                ) : (
+                    <Button onClick={handleClose} className="w-full">Tuyệt vời!</Button>
+                )}
             </div>
         ) : (
              <Button 
-                onClick={isSpinning ? handleStop : handleSpin} 
-                disabled={!canSpin && !isSpinning} 
+                onClick={handleSpin} 
+                disabled={isSpinning || spins === 0}
                 className="w-full"
-                variant={isSpinning ? 'destructive' : 'default'}
              >
-                {isSpinning ? 'Dừng Lại!' : 'Quay Ngay!'}
+                {isSpinning ? 'Đang quay...' : (spins > 0 ? `Quay Ngay! (${spins} lượt)`: 'Hết lượt quay')}
              </Button>
         )}
       </DialogContent>

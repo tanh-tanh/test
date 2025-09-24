@@ -26,22 +26,63 @@ export function generateGridFromClues(words: string[]): Layout | null {
     if (words.length < 2) return null;
 
     const sortedWords = words.map((word, index) => ({ word, index })).sort((a, b) => b.word.length - a.word.length);
+    
+    // Designate the longest word as the main 'down' keyword if possible, otherwise first is 'across'
+    const hasPotentialDown = sortedWords.length > 1;
+    
+    const firstWord = sortedWords[0];
+    const secondWord = sortedWords.length > 1 ? sortedWords[1] : null;
+
     const placedWords: WordEntry[] = [];
     
-    // Place the first (longest) word
-    const firstWord = sortedWords[0];
-    placedWords.push({ 
-        word: firstWord.word, 
-        wordIndex: firstWord.index,
-        direction: 'across', 
-        x: 0, 
-        y: 0,
-        number: 1,
-    });
-    
+    // Try to place the first word 'down' and second word 'across' intersecting it
+    let successfullyPlacedInitialPair = false;
+    if (secondWord) {
+        for (let i = 0; i < firstWord.word.length; i++) {
+            for (let j = 0; j < secondWord.word.length; j++) {
+                if (firstWord.word[i] === secondWord.word[j]) {
+                    // Place first word (down)
+                    placedWords.push({
+                        word: firstWord.word,
+                        wordIndex: firstWord.index,
+                        direction: 'down',
+                        x: j,
+                        y: 0,
+                        number: 0 // temp
+                    });
+                     // Place second word (across)
+                    placedWords.push({
+                        word: secondWord.word,
+                        wordIndex: secondWord.index,
+                        direction: 'across',
+                        x: 0,
+                        y: i,
+                        number: 0 // temp
+                    });
+                    successfullyPlacedInitialPair = true;
+                    break;
+                }
+            }
+            if (successfullyPlacedInitialPair) break;
+        }
+    }
+
+    if (!successfullyPlacedInitialPair) {
+        // Fallback to original placement logic if intersection fails
+        placedWords.push({ 
+            word: firstWord.word, 
+            wordIndex: firstWord.index,
+            direction: 'across', 
+            x: 0, 
+            y: 0,
+            number: 1,
+        });
+    }
+
+    const wordsToPlace = sortedWords.slice(successfullyPlacedInitialPair ? 2 : 1);
+
     // Place remaining words
-    for (let i = 1; i < sortedWords.length; i++) {
-        const currentWord = sortedWords[i];
+    for (const currentWord of wordsToPlace) {
         let placed = false;
         
         // Try to intersect with already placed words
@@ -180,7 +221,9 @@ function createLayoutFromEntries(entries: Omit<WordEntry, 'number'>[]): Layout {
     });
 
     for(const [, wordEntries] of sortedStarts) {
-        for (const entry of wordEntries) {
+        // Sort by direction to have 'across' first if they share a start point
+        const sortedWordEntries = wordEntries.sort((a,b) => a.direction.localeCompare(b.direction));
+        for (const entry of sortedWordEntries) {
             numberedEntries.push({ ...entry, number: clueCounter });
         }
         clueCounter++;

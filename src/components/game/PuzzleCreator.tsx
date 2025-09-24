@@ -6,22 +6,28 @@ import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PlusCircle, Trash2, Wand2, Sparkles } from 'lucide-react';
+import { PlusCircle, Trash2, Wand2, Sparkles, Gift } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useTransition } from 'react';
-import type { PuzzleData, Clue } from '@/lib/puzzle';
+import type { PuzzleData, Clue, LuckyWheelReward } from '@/lib/puzzle';
 import { generateGridFromClues } from '@/lib/gridGenerator';
 import CrissCrossPuzzle from './CrissCrossPuzzle';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { samplePuzzle } from '@/lib/puzzle';
 
 const clueSchema = z.object({
     question: z.string().min(1, { message: 'Gợi ý không được để trống.' }),
     answer: z.string().min(2, { message: 'Đáp án cần ít nhất 2 ký tự.' }),
 });
 
+const rewardSchema = z.object({
+    text: z.string().min(1, { message: 'Phần thưởng không được để trống.' }),
+});
+
 const puzzleSchema = z.object({
   title: z.string().min(3, { message: 'Tiêu đề cần ít nhất 3 ký tự.' }),
   clues: z.array(clueSchema).min(2, { message: 'Cần ít nhất 2 cặp gợi ý và đáp án.' }),
+  rewards: z.array(rewardSchema).min(2, { message: 'Cần ít nhất 2 phần thưởng.' }).max(12, {message: 'Tối đa 12 phần thưởng.'}),
 });
 
 type PuzzleFormValues = z.infer<typeof puzzleSchema>;
@@ -37,15 +43,21 @@ export default function PuzzleCreator() {
     defaultValues: {
       title: '',
       clues: [
+        { question: 'Từ khóa: ', answer: '' },
         { question: '', answer: '' },
-        { question: '', answer: '' }
-    ],
+      ],
+      rewards: samplePuzzle.rewards,
     },
   });
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: 'clues',
+  });
+
+  const { fields: rewardFields, append: appendReward, remove: removeReward } = useFieldArray({
+    control: form.control,
+    name: 'rewards',
   });
 
   function onSubmit(data: PuzzleFormValues) {
@@ -57,7 +69,7 @@ export default function PuzzleCreator() {
             if (!puzzleLayout) {
                 toast({
                     title: 'Lỗi tạo ô chữ',
-                    description: 'Không thể tạo được một ô chữ hợp lệ với các từ đã cho. Hãy thử lại với các từ khác.',
+                    description: 'Không thể tạo được một ô chữ hợp lệ với các từ đã cho. Hãy thử lại với các từ khác hoặc thay đổi thứ tự của chúng.',
                     variant: 'destructive',
                 });
                 setGeneratedPuzzle(null);
@@ -80,6 +92,7 @@ export default function PuzzleCreator() {
                 clues,
                 gridSize: { rows: puzzleLayout.height, cols: puzzleLayout.width },
                 solutionGrid: puzzleLayout.grid,
+                rewards: data.rewards,
             };
 
             setGeneratedPuzzle(newPuzzle);
@@ -124,6 +137,7 @@ export default function PuzzleCreator() {
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-medium">Các Gợi Ý và Đáp Án</h3>
                 </div>
+                 <p className="text-sm text-muted-foreground">Từ dài nhất sẽ được ưu tiên làm từ khóa hàng dọc.</p>
                 {fields.map((field, index) => (
                     <div key={field.id} className="p-4 border rounded-lg bg-background/50 space-y-4 relative">
                         <FormField
@@ -165,14 +179,63 @@ export default function PuzzleCreator() {
                         )}
                     </div>
                 ))}
-            </div>
-
-            <div className="flex flex-wrap gap-4 items-center">
-                <Button type="button" variant="outline" onClick={() => append({ question: '', answer: '' })}>
+                 <Button type="button" variant="outline" size="sm" onClick={() => append({ question: '', answer: '' })}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Thêm Gợi Ý & Đáp Án
                 </Button>
-                <Button type="submit" disabled={isPending}>
+            </div>
+            
+            <div className="space-y-4">
+                 <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-medium">Phần thưởng Vòng Quay May Mắn</h3>
+                </div>
+                 <FormField
+                    control={form.control}
+                    name="rewards"
+                    render={() => (
+                        <FormItem>
+                             {form.formState.errors.rewards && <FormMessage>{form.formState.errors.rewards.message}</FormMessage>}
+                        </FormItem>
+                    )}
+                />
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {rewardFields.map((field, index) => (
+                        <div key={field.id} className="relative">
+                             <FormField
+                                control={form.control}
+                                name={`rewards.${index}.text`}
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormControl>
+                                            <Input placeholder={`Phần thưởng ${index + 1}`} {...field} className="pr-8" />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                             {rewardFields.length > 2 && (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute top-1/2 right-0 -translate-y-1/2 text-muted-foreground hover:text-destructive h-8 w-8"
+                                    onClick={() => removeReward(index)}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                             )}
+                        </div>
+                    ))}
+                </div>
+                 <Button type="button" variant="outline" size="sm" onClick={() => appendReward({ text: '' })}>
+                    <Gift className="mr-2 h-4 w-4" />
+                    Thêm Phần Thưởng
+                </Button>
+            </div>
+
+
+            <div className="flex flex-wrap gap-4 items-center">
+                <Button type="submit" disabled={isPending} size="lg">
                   {isPending ? (
                       <>
                           <Sparkles className="mr-2 h-4 w-4 animate-spin" />
@@ -193,10 +256,13 @@ export default function PuzzleCreator() {
       {generatedPuzzle && (
         <div className="mt-12">
             <Card className="border-2 border-primary/20 shadow-lg">
-                <CardHeader>
+                <CardHeader className="flex-row justify-between items-start">
                     <CardTitle className="text-center text-3xl font-bold text-primary tracking-wider font-headline">
                     {generatedPuzzle.title}
                     </CardTitle>
+                    <Button variant="outline" onClick={() => { setGeneratedPuzzle(null); setShowForm(true); }}>
+                        Chỉnh sửa
+                    </Button>
                 </CardHeader>
                 <CardContent>
                     <CrissCrossPuzzle puzzleData={generatedPuzzle} />
