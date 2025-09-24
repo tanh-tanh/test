@@ -34,10 +34,10 @@ export const samplePuzzle: PuzzleData = {
   rewards: [
     { text: '100 Điểm' },
     { text: 'Thêm Lượt' },
-    { text: 'Nhân Đôi Điểm' },
-    { text: 'Gợi Ý Miễn Phí' },
     { text: '50 Điểm' },
-    { text: 'Thêm Lượt' },
+    { text: 'Mất Lượt' },
+    { text: 'Gợi Ý' },
+    { text: '200 Điểm' },
   ],
   solutionGrid: [
     [null, null, 'A', null, null],
