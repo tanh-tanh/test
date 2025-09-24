@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { samplePuzzle } from '@/lib/puzzle';
 
 const acrossClueSchema = z.object({
-    question: z.string().min(1, { message: 'Gợi ý không được để trống.' }),
+    question: z.string().min(1, { message: 'Câu hỏi không được để trống.' }),
     answer: z.string().min(2, { message: 'Đáp án cần ít nhất 2 ký tự.' }),
 });
 
