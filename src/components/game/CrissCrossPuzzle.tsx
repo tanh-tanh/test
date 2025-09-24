@@ -32,8 +32,9 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
   const [activeClue, setActiveClue] = useState<Clue | null>(clues.find(c => c.direction === 'across') || clues[0]);
   const [isWheelOpen, setWheelOpen] = useState(false);
   const [spins, setSpins] = useState(0);
+  const [currentAnswer, setCurrentAnswer] = useState('');
 
-  const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
+  const answerInputRef = useRef<HTMLInputElement>(null);
   
   const gridLayout = useMemo<GridCell[][]>(() => {
     const layout: GridCell[][] = Array.from({ length: gridSize.rows }, () =>
@@ -47,30 +48,40 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
 
     clues.forEach(clue => {
       let { row, col } = clue;
-      // Check if the starting cell is within bounds
-      if (layout[row] && layout[row][col] && layout[row][col].number === null) {
+      if (row < gridSize.rows && col < gridSize.cols && layout[row][col] && layout[row][col].number === null) {
         layout[row][col].number = clue.number;
       }
       
       for (let i = 0; i < clue.answer.length; i++) {
-        // Bounds check for every cell in the word
-        if (row < gridSize.rows && col < gridSize.cols && layout[row] && layout[row][col]) {
-            layout[row][col].isBlack = false;
+        if (row < gridSize.rows && col < gridSize.cols) {
+            if (layout[row] && layout[row][col]) {
+              layout[row][col].isBlack = false;
+              if (clue.direction === 'across') {
+                layout[row][col].clues.across = clue.id;
+              } else {
+                layout[row][col].clues.down = clue.id;
+              }
+            }
             if (clue.direction === 'across') {
-              layout[row][col].clues.across = clue.id;
-              col++;
+                col++;
             } else {
-              layout[row][col].clues.down = clue.id;
-              row++;
+                row++;
             }
         } else {
-            // If we're out of bounds, stop processing this clue
             break;
         }
       }
     });
     return layout;
   }, [gridSize, clues]);
+
+  useEffect(() => {
+    if (activeClue && !solvedClues[activeClue.id]) {
+        setCurrentAnswer('');
+        answerInputRef.current?.focus();
+    }
+  }, [activeClue, solvedClues]);
+
 
   const handleCellClick = (row: number, col: number) => {
     const cellClues = gridLayout[row][col].clues;
@@ -86,96 +97,18 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
     const newClue = clues.find(c => c.id === newActiveClueId);
     if (newClue) {
       setActiveClue(newClue);
-      focusOnClue(newClue);
     }
   };
 
-  const focusOnClue = (clue: Clue) => {
-    if (inputRefs.current[clue.row] && inputRefs.current[clue.row][clue.col]) {
-      inputRefs.current[clue.row][clue.col]?.focus();
-      inputRefs.current[clue.row][clue.col]?.select();
-    }
-  }
-
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement>, row: number, col: number) => {
-    const value = e.target.value.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
-    const newGrid = grid.map(r => [...r]);
-    newGrid[row][col] = value.slice(0, 1);
-    setGrid(newGrid);
-
-    if (value && activeClue) {
-      let nextRow = row;
-      let nextCol = col;
-      if (activeClue.direction === 'across') {
-        nextCol++;
-      } else {
-        nextRow++;
-      }
-      
-      while(nextRow < gridSize.rows && nextCol < gridSize.cols && gridLayout[nextRow][nextCol].isBlack) {
-        if (activeClue.direction === 'across') {
-          nextCol++;
-        } else {
-          nextRow++;
-        }
-      }
-
-      if (nextRow < gridSize.rows && nextCol < gridSize.cols) {
-        inputRefs.current[nextRow]?.[nextCol]?.focus();
-      }
-    }
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, row: number, col: number) => {
-    if (e.key === 'Backspace' && !grid[row][col]) {
-      let prevRow = row;
-      let prevCol = col;
-      if (activeClue?.direction === 'across') {
-        prevCol--;
-      } else {
-        prevRow--;
-      }
-      if (prevRow >= 0 && prevCol >= 0) {
-        inputRefs.current[prevRow]?.[prevCol]?.focus();
-      }
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      const nextClue = clues.find(c => c.id === gridLayout[row][col].clues.down);
-      if (nextClue) setActiveClue(nextClue);
-      for(let r = row - 1; r >= 0; r--) if(!gridLayout[r][col].isBlack) { inputRefs.current[r]?.[col]?.focus(); break; }
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      const nextClue = clues.find(c => c.id === gridLayout[row][col].clues.down);
-      if (nextClue) setActiveClue(nextClue);
-      for(let r = row + 1; r < gridSize.rows; r++) if(!gridLayout[r][col].isBlack) { inputRefs.current[r]?.[col]?.focus(); break; }
-    } else if (e.key === 'ArrowLeft') {
-      e.preventDefault();
-      const nextClue = clues.find(c => c.id === gridLayout[row][col].clues.across);
-      if (nextClue) setActiveClue(nextClue);
-      for(let c = col - 1; c >= 0; c--) if(!gridLayout[row][c].isBlack) { inputRefs.current[row]?.[c]?.focus(); break; }
-    } else if (e.key === 'ArrowRight') {
-      e.preventDefault();
-      const nextClue = clues.find(c => c.id === gridLayout[row][col].clues.across);
-      if (nextClue) setActiveClue(nextClue);
-      for(let c = col + 1; c < gridSize.cols; c++) if(!gridLayout[row][c].isBlack) { inputRefs.current[row]?.[c]?.focus(); break; }
-    }
-  }
 
   const checkCurrentClue = () => {
-    if (!activeClue) return;
-    let { row, col } = activeClue;
-    let userAnswer = '';
-    for (let i = 0; i < activeClue.answer.length; i++) {
-      userAnswer += grid[row][col] || ' ';
-      if (activeClue.direction === 'across') col++;
-      else row++;
-    }
+    if (!activeClue || !currentAnswer) return;
     
     startTransition(async () => {
       const result = await checkAnswerAction({
         puzzleId,
         questionId: activeClue.id,
-        userAnswer,
+        userAnswer: currentAnswer,
         correctAnswer: activeClue.answer
       });
       
@@ -184,24 +117,31 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
         setSolvedClues(prev => ({...prev, [activeClue.id]: true}));
         
         if (activeClue.direction === 'down') {
-          // Keyword guessed correctly!
           toast({ title: 'Từ khóa chính xác!', description: 'Bạn nhận được 2 lượt quay may mắn!', variant: 'default' });
           setSpins(spins => spins + 2);
           setWheelOpen(true);
         } else {
-          // Regular clue guessed correctly
           toast({ title: 'Chính xác!', description: 'Bạn thật xuất sắc!', variant: 'default' });
         }
         
-        // Fill in the correct answer on the grid
         let { row, col } = activeClue;
         const newGrid = grid.map(r => [...r]);
         for (let i = 0; i < activeClue.answer.length; i++) {
-          newGrid[row][col] = activeClue.answer[i];
-          if (activeClue.direction === 'across') col++;
-          else row++;
+            if(row < gridSize.rows && col < gridSize.cols){
+                newGrid[row][col] = activeClue.answer[i];
+                 if (activeClue.direction === 'across') col++;
+                else row++;
+            }
         }
         setGrid(newGrid);
+        setCurrentAnswer('');
+
+        // Find and set the next unsolved clue
+        const currentIndex = clues.findIndex(c => c.id === activeClue.id);
+        const nextClue = clues.slice(currentIndex + 1).find(c => !solvedClues[c.id]) || clues.find(c => !solvedClues[c.id]);
+        if(nextClue) {
+            setActiveClue(nextClue);
+        }
 
       } else {
         toast({ title: 'Chưa đúng!', description: message || 'Hãy thử lại nhé.', variant: 'destructive' });
@@ -216,7 +156,6 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
     }
   }
 
-  const isClueActive = (clueId: string) => activeClue?.id === clueId;
   const isCellInActiveClue = (row: number, col: number) => {
     if (!activeClue) return false;
     const { row: startRow, col: startCol, direction, answer } = activeClue;
@@ -227,113 +166,86 @@ export default function CrissCrossPuzzle({ puzzleData }: { puzzleData: PuzzleDat
     }
   }
 
-  const downClue = useMemo(() => clues.find(c => c.direction === 'down'), [clues]);
-  const acrossClues = useMemo(() => clues.filter(c => c.direction === 'across'), [clues]);
-
-
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <div className="lg:col-span-2 flex flex-col items-center">
-        <div 
-          className="grid bg-stone-800 border-4 border-stone-800 shadow-inner rounded-md overflow-hidden" 
-          style={{
-            gridTemplateRows: `repeat(${gridSize.rows}, minmax(0, 1fr))`,
-            gridTemplateColumns: `repeat(${gridSize.cols}, minmax(0, 1fr))`,
-            aspectRatio: `${gridSize.cols} / ${gridSize.rows}`,
-            maxWidth: '70vh',
-            width: '100%',
-          }}
-        >
-          {gridLayout.map((row, rIdx) =>
-            row.map((cell, cIdx) => {
-              if (cell.isBlack) {
-                return <div key={`${rIdx}-${cIdx}`} className="bg-stone-800" />;
-              }
-              const isSolved = (cell.clues.across && solvedClues[cell.clues.across]) || (cell.clues.down && solvedClues[cell.clues.down]);
-              const isInActive = isCellInActiveClue(rIdx, cIdx);
+    <div className="flex flex-col items-center gap-8">
+      <div 
+        className="grid bg-stone-800 border-4 border-stone-800 shadow-inner rounded-md overflow-hidden" 
+        style={{
+          gridTemplateRows: `repeat(${gridSize.rows}, minmax(0, 1fr))`,
+          gridTemplateColumns: `repeat(${gridSize.cols}, minmax(0, 1fr))`,
+          aspectRatio: `${gridSize.cols} / ${gridSize.rows}`,
+          maxWidth: '70vh',
+          width: '100%',
+        }}
+      >
+        {gridLayout.map((row, rIdx) =>
+          row.map((cell, cIdx) => {
+            if (cell.isBlack) {
+              return <div key={`${rIdx}-${cIdx}`} className="bg-stone-800" />;
+            }
+            const isSolved = (cell.clues.across && solvedClues[cell.clues.across]) || (cell.clues.down && solvedClues[cell.clues.down]);
+            const isInActive = isCellInActiveClue(rIdx, cIdx);
 
-              return (
-                <div
-                  key={`${rIdx}-${cIdx}`}
-                  className={cn(
-                    "relative flex items-center justify-center border border-stone-500",
-                    isSolved ? 'bg-primary/20' : 'bg-card',
-                    isInActive && !isSolved && 'bg-accent/30',
-                  )}
-                  onClick={() => handleCellClick(rIdx, cIdx)}
-                >
-                  {cell.number && (
-                    <span className="absolute top-0 left-0.5 text-[0.6rem] text-muted-foreground font-sans">{cell.number}</span>
-                  )}
-                  <Input
-                    ref={el => {
-                      if (!inputRefs.current[rIdx]) inputRefs.current[rIdx] = [];
-                      inputRefs.current[rIdx][cIdx] = el;
-                    }}
-                    type="text"
-                    maxLength={1}
-                    value={grid[rIdx][cIdx] || ''}
-                    onChange={(e) => handleInputChange(e, rIdx, cIdx)}
-                    onKeyDown={(e) => handleKeyDown(e, rIdx, cIdx)}
-                    className={cn(
-                      "cell-input",
-                      isSolved ? 'text-primary/90' : 'text-foreground',
-                    )}
-                    readOnly={isSolved}
-                    aria-label={`cell ${rIdx}, ${cIdx}`}
-                  />
-                </div>
-              );
-            })
-          )}
-        </div>
-        {activeClue && !solvedClues[activeClue.id] && (
-          <div className="mt-6 w-full max-w-md text-center">
-            <p className="font-semibold text-lg">{activeClue.number}. {activeClue.direction === 'across' ? 'Ngang' : 'Dọc'}</p>
-            <p className="text-muted-foreground mb-4">{activeClue.question ? activeClue.question : "Dùng các chữ cái hàng ngang để đoán từ khóa."}</p>
-            <Button onClick={checkCurrentClue} disabled={isPending}>
-              {isPending ? 'Đang kiểm tra...' : 'Kiểm tra đáp án'}
-            </Button>
-          </div>
+            return (
+              <div
+                key={`${rIdx}-${cIdx}`}
+                className={cn(
+                  "relative flex items-center justify-center border border-stone-500 text-center uppercase font-bold text-lg md:text-xl",
+                  isSolved ? 'bg-primary/20 text-primary/90' : 'bg-card text-foreground',
+                  isInActive && !isSolved && 'bg-accent/30',
+                  "cursor-pointer"
+                )}
+                onClick={() => handleCellClick(rIdx, cIdx)}
+              >
+                {cell.number && (
+                  <span className="absolute top-0 left-0.5 text-[0.6rem] text-muted-foreground font-sans">{cell.number}</span>
+                )}
+                {grid[rIdx][cIdx]}
+              </div>
+            );
+          })
         )}
-         {isWheelOpen && (
-             <LuckyWheel 
-                open={isWheelOpen} 
-                onOpenChange={(isOpen) => !isOpen && handleWheelClose(0)}
-                rewards={rewards ?? samplePuzzle.rewards!}
-                spins={spins}
-                onSpinsChange={handleWheelClose}
+      </div>
+
+      {activeClue && !solvedClues[activeClue.id] ? (
+        <div className="mt-4 w-full max-w-lg text-center bg-card p-6 rounded-lg shadow-md border">
+          <p className="font-semibold text-xl text-primary">
+              {activeClue.number}. {activeClue.direction === 'across' ? 'Ngang' : 'Dọc'} ({activeClue.answer.length} chữ cái)
+          </p>
+          <p className="text-muted-foreground mb-4 h-6">
+              {activeClue.question ? activeClue.question : "Dùng các chữ cái đã biết để đoán từ khóa."}
+          </p>
+          <form onSubmit={(e) => { e.preventDefault(); checkCurrentClue(); }} className="flex gap-2">
+            <Input
+              ref={answerInputRef}
+              type="text"
+              placeholder="Nhập đáp án của bạn..."
+              value={currentAnswer}
+              onChange={(e) => setCurrentAnswer(e.target.value)}
+              className="text-center text-lg"
+              disabled={isPending}
             />
-         )}
-      </div>
-
-      <div className="space-y-6">
-        {downClue && (
-          <div>
-            <h3 className="font-bold text-xl text-primary mb-2 flex items-center gap-2"><Trophy className="text-yellow-500"/> Hàng dọc (Từ khóa)</h3>
-            <div
-                className={cn("p-2 rounded-md cursor-pointer flex items-center gap-2", isClueActive(downClue.id) && "bg-accent/50 font-bold", solvedClues[downClue.id] && "line-through text-muted-foreground")}
-                onClick={() => { setActiveClue(downClue); focusOnClue(downClue); }}
-              >
-                <HelpCircle className="w-4 h-4 text-muted-foreground"/> 
-                <span>Đoán từ khóa ẩn</span>
-            </div>
-          </div>
-        )}
-        <div>
-          <h3 className="font-bold text-xl text-primary mb-2">Hàng ngang</h3>
-          <ul className="space-y-1">
-            {acrossClues.map(clue => (
-              <li key={clue.id}
-                className={cn("p-2 rounded-md cursor-pointer", isClueActive(clue.id) && "bg-accent/50", solvedClues[clue.id] && "line-through text-muted-foreground")}
-                onClick={() => { setActiveClue(clue); focusOnClue(clue); }}
-              >
-                <strong>{clue.number}.</strong> {clue.question}
-              </li>
-            ))}
-          </ul>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? 'Đang kiểm tra...' : 'Kiểm tra'}
+            </Button>
+          </form>
         </div>
-      </div>
+      ) : (
+         <div className="mt-4 w-full max-w-lg text-center p-6">
+            <p className="text-xl font-bold text-primary">🎉 Chúc mừng! 🎉</p>
+            <p className="text-muted-foreground">Bạn đã hoàn thành ô chữ này. Hãy tạo một ô chữ mới để thử thách bạn bè!</p>
+         </div>
+      )}
+
+      {isWheelOpen && (
+           <LuckyWheel 
+              open={isWheelOpen} 
+              onOpenChange={(isOpen) => !isOpen && handleWheelClose(0)}
+              rewards={rewards ?? samplePuzzle.rewards!}
+              spins={spins}
+              onSpinsChange={handleWheelClose}
+          />
+       )}
     </div>
   );
 }
