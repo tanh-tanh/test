@@ -80,22 +80,30 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, setSpin
 
   const handleStopSpin = () => {
     if (!isSpinning) return;
-    
+
     if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
+        cancelAnimationFrame(animationFrameRef.current);
     }
     
-    // Determine the winning segment
-    const currentRotation = rotation % 360;
-    // Add some random spin to make it feel more random
-    const randomExtraRotation = Math.random() * 360 * 2 + 720; // Spin at least 2-4 more times
-    const finalRotation = rotation + randomExtraRotation;
+    const finalRotation = rotation;
 
+    // The winning segment is determined by which segment is at the top (pointed to by the arrow).
+    // The arrow is at 0 degrees. We need to find which segment's angle range contains 0.
+    // The rotation is of the wheel itself. A rotation of R means the 0-degree line of the wheel is now at R degrees.
+    // The pointer is fixed at the top (0 degrees, but visually it's -90deg from horizontal).
+    // A segment `i` spans from `i * segmentDegrees` to `(i+1) * segmentDegrees`.
+    // After rotation `R`, segment `i` is at `i*seg + R` to `(i+1)*seg + R`.
+    // The pointer is at 0 (or 360). We want to find `i` such that `i*seg+R (mod 360)` contains 0.
+    // This is equivalent to finding the segment under the pointer.
+    // The pointer is at the top. The rotation is clockwise.
+    // `finalRotation % 360` is the wheel's current orientation.
+    // `360 - (finalRotation % 360)` is the angle of the pointer relative to the wheel's 0 degree line.
+    // Add half a segment degree to be in the middle of the segment.
     const winningIndex = Math.floor(
-        ((360 - (finalRotation % 360)) + (segmentDegrees / 2)) % 360 / segmentDegrees
+        ((360 - (finalRotation % 360) + (segmentDegrees / 2)) % 360) / segmentDegrees
     );
-    
-    setRotation(finalRotation);
+
+    setRotation(finalRotation); // This keeps the wheel at its stopped position
     setFinalRewardIndex(winningIndex);
     setIsSpinning(false);
   };
