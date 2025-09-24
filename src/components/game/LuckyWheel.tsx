@@ -36,68 +36,132 @@ interface LuckyWheelProps {
 
 export default function LuckyWheel({ open, onOpenChange, rewards, spins, onSpinsChange }: LuckyWheelProps) {
   const [isSpinning, setIsSpinning] = useState(false);
-  const [spinDegrees, setSpinDegrees] = useState(0);
+  const [rotation, setRotation] = useState(0);
   const [finalRewardIndex, setFinalRewardIndex] = useState<number | null>(null);
-  const wheelRef = useRef<HTMLDivElement>(null);
   
-  const transitionDuration = 4000; // 4s for spinning
+  const wheelRef = useRef<HTMLDivElement>(null);
+  const animationFrameRef = useRef<number>();
 
+  const segmentDegrees = 360 / rewards.length;
+
+  // Cleanup animation frame on unmount
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, []);
+
+  // Reset state when dialog closes/opens
   useEffect(() => {
     if (!open) {
-      // Reset state when dialog closes
       setIsSpinning(false);
-      setSpinDegrees(0);
+      setRotation(0);
       setFinalRewardIndex(null);
-       if (wheelRef.current) {
-        wheelRef.current.style.transition = 'none';
-        wheelRef.current.style.transform = `rotate(0deg)`;
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
       }
     } else {
-        setFinalRewardIndex(null);
+      setFinalRewardIndex(null);
+      setRotation(0); // Reset rotation for new session
     }
   }, [open]);
 
-  const handleSpin = () => {
+  const spin = () => {
+    setRotation(prev => prev + 10); // Adjust speed here
+    animationFrameRef.current = requestAnimationFrame(spin);
+  };
+  
+  const handleStartSpin = () => {
     if (isSpinning || spins <= 0) return;
     
-    setFinalRewardIndex(null);
     setIsSpinning(true);
-
-    const randomExtraDegrees = Math.floor(Math.random() * 360);
-    const fullSpins = 5;
-    const newSpinDegrees = spinDegrees + 360 * fullSpins + randomExtraDegrees;
-    
-    if (wheelRef.current) {
-        wheelRef.current.style.transition = `transform ${transitionDuration}ms cubic-bezier(0.25, 0.1, 0.25, 1)`;
-        wheelRef.current.style.transform = `rotate(${newSpinDegrees}deg)`;
-    }
-
-    setSpinDegrees(newSpinDegrees);
+    setFinalRewardIndex(null);
     onSpinsChange(spins - 1);
+    
+    animationFrameRef.current = requestAnimationFrame(spin);
+  };
+
+  const handleStopSpin = () => {
+    if (!isSpinning) return;
+    
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+    
+    // Calculate where it stops
+    const currentRotation = rotation % 360;
+    const randomStopPoint = Math.floor(Math.random() * 360);
+    const totalRotation = rotation - currentRotation + 360 * 4 + randomStopPoint; // 4 extra spins for slowdown
+    
+    // Calculate final reward
+    const finalAngle = totalRotation % 360;
+    const winningIndex = Math.floor((360 - finalAngle + segmentDegrees / 2) / segmentDegrees) % rewards.length;
+
+    setRotation(totalRotation);
 
     setTimeout(() => {
         setIsSpinning(false);
-        const segmentDegrees = 360 / rewards.length;
-        const normalizedAngle = (newSpinDegrees % 360); 
-        const stoppedSegmentIndex = Math.floor((360 - normalizedAngle) / segmentDegrees) % rewards.length;
-        setFinalRewardIndex(stoppedSegmentIndex);
-    }, transitionDuration);
+        setFinalRewardIndex(winningIndex);
+    }, 4000); // Wait for slowdown animation to finish
   };
   
   const handleClose = () => {
     onOpenChange(false);
   }
 
-  const segmentDegrees = 360 / rewards.length;
+  const getButtonProps = () => {
+      if (finalRewardIndex !== null) {
+          if (spins > 0) {
+              return {
+                  text: `Quay tiếp (${spins} lượt)`,
+                  action: handleStartSpin,
+                  disabled: false,
+              }
+          }
+          return {
+              text: 'Tuyệt vời!',
+              action: handleClose,
+              disabled: false,
+          }
+      }
+
+      if (isSpinning) {
+          return {
+              text: 'Dừng Lại!',
+              action: handleStopSpin,
+              disabled: false,
+          }
+      }
+
+      if (spins > 0) {
+          return {
+              text: `Quay Ngay! (${spins} lượt)`,
+              action: handleStartSpin,
+              disabled: false,
+          }
+      }
+
+      return {
+          text: 'Hết lượt quay',
+          action: handleClose,
+          disabled: false
+      }
+  }
+
+  const buttonProps = getButtonProps();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px] bg-card border-accent shadow-lg">
         <DialogHeader>
           <DialogTitle className="text-center text-2xl font-bold text-primary">Vòng Quay May Mắn!</DialogTitle>
-          <DialogDescription className="text-center">
-            Bạn có {spins} lượt quay.
-          </DialogDescription>
+           {finalRewardIndex === null && (
+            <DialogDescription className="text-center">
+                Bạn còn {spins + (isSpinning ? 1: 0)} lượt quay.
+            </DialogDescription>
+           )}
         </DialogHeader>
         <div className="relative flex flex-col items-center justify-center p-8">
           <ArrowRight className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-12 text-primary z-10 -rotate-90" />
@@ -105,6 +169,10 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, onSpins
             id="lucky-wheel"
             ref={wheelRef}
             className="relative w-80 h-80 rounded-full border-8 border-primary shadow-2xl overflow-hidden"
+            style={{ 
+              transform: `rotate(${rotation}deg)`,
+              transition: isSpinning ? 'none' : 'transform 4s cubic-bezier(0.2, 0.8, 0.2, 1)',
+            }}
           >
             {rewards.map((reward, index) => (
               <div
@@ -127,28 +195,22 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, onSpins
             ))}
           </div>
         </div>
-        {finalRewardIndex !== null ? (
-            <div className="text-center space-y-4">
+        {finalRewardIndex !== null && (
+            <div className="text-center space-y-2">
                 <p className="text-lg font-semibold">Chúc mừng! Bạn đã nhận được:</p>
                 <div className="inline-flex items-center gap-2 p-3 bg-accent/20 rounded-lg">
                     {getIconForReward(rewards[finalRewardIndex].text)}
                     <span className="text-xl font-bold text-accent-foreground">{rewards[finalRewardIndex].text}</span>
                 </div>
-                {spins > 0 ? (
-                     <Button onClick={handleSpin} className="w-full">Quay tiếp ({spins} lượt)</Button>
-                ) : (
-                    <Button onClick={handleClose} className="w-full">Tuyệt vời!</Button>
-                )}
             </div>
-        ) : (
-             <Button 
-                onClick={handleSpin} 
-                disabled={isSpinning || spins === 0}
-                className="w-full"
-             >
-                {isSpinning ? 'Đang quay...' : (spins > 0 ? `Quay Ngay! (${spins} lượt)`: 'Hết lượt quay')}
-             </Button>
         )}
+        <Button 
+            onClick={buttonProps.action} 
+            disabled={buttonProps.disabled}
+            className="w-full mt-4"
+        >
+            {buttonProps.text}
+        </Button>
       </DialogContent>
     </Dialog>
   );
