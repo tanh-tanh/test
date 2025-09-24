@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
@@ -41,6 +42,7 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, onSpins
   const wheelRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number>();
   const segmentDegrees = 360 / rewards.length;
+  const rotationSpeed = 10; // degrees per frame
 
   useEffect(() => {
     return () => {
@@ -49,34 +51,20 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, onSpins
       }
     };
   }, []);
-
-  useEffect(() => {
-    if (open) {
-      setFinalRewardIndex(null);
-      // Do not reset rotation to allow it to continue from where it left off
-    } else {
-      setIsSpinning(false);
-      setRotation(0);
-      setFinalRewardIndex(null);
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    }
-  }, [open]);
-
+  
   const spin = () => {
-    setRotation(prev => prev + 10);
+    setRotation(prev => prev + rotationSpeed);
     animationFrameRef.current = requestAnimationFrame(spin);
   };
   
   const handleStartSpin = () => {
     if (isSpinning || spins <= 0) return;
     
-    setIsSpinning(true);
     setFinalRewardIndex(null);
     onSpinsChange(spins - 1);
+    setIsSpinning(true);
     
-    requestAnimationFrame(spin);
+    animationFrameRef.current = requestAnimationFrame(spin);
   };
 
   const handleStopSpin = () => {
@@ -87,7 +75,6 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, onSpins
     }
     
     const currentRotation = rotation % 360;
-    // Calculate winning index based on current rotation
     const winningIndex = Math.floor((360 - currentRotation + segmentDegrees / 2) % 360 / segmentDegrees);
 
     setFinalRewardIndex(winningIndex);
@@ -96,6 +83,12 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, onSpins
   
   const handleClose = () => {
     onOpenChange(false);
+    // Reset state on close
+    setTimeout(() => {
+        setIsSpinning(false);
+        setRotation(0);
+        setFinalRewardIndex(null);
+    }, 300);
   }
 
   const getButtonProps = () => {
@@ -140,7 +133,7 @@ export default function LuckyWheel({ open, onOpenChange, rewards, spins, onSpins
   const buttonProps = getButtonProps();
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
       <DialogContent className="sm:max-w-[480px] bg-card border-accent shadow-lg">
         <DialogHeader>
           <DialogTitle className="text-center text-2xl font-bold text-primary">Vòng Quay May Mắn!</DialogTitle>
